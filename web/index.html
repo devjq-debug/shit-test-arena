@@ -98,31 +98,6 @@
 </head>
 <body class="bg-arena-black text-gray-100 antialiased min-h-screen flex flex-col items-center justify-start selection:bg-arena-pink selection:text-white">
 
-  <!-- TOP BAR NAVEGADOR DE ESTADOS / SWITCHER DE VISTAS PARA PRUEBA COMPLETA -->
-  <aside aria-label="Selector de pantalla interactiva" class="w-full bg-[#111115] border-b border-arena-cardborder/80 sticky top-0 z-50 px-3 py-2 flex flex-wrap items-center justify-between gap-2 shadow-md">
-    <div class="flex items-center gap-2">
-      <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-gradient-to-br from-arena-pink to-arena-orange text-white font-black text-xs">⚡</span>
-      <span class="text-xs font-mono font-bold tracking-wider text-gray-300">EXPLORADOR DE INTERFACES</span>
-      <span class="text-[10px] bg-arena-pink/20 text-arena-pink px-2 py-0.5 rounded border border-arena-pink/30 font-mono">14 SCREENS</span>
-    </div>
-    <div class="flex items-center gap-1.5 overflow-x-auto max-w-full py-0.5 no-scrollbar">
-      <button onclick="switchScreen('ui-1')" id="btn-ui-1" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-pink text-white font-bold">1. Home</button>
-      <button onclick="switchScreen('ui-2')" id="btn-ui-2" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">2. Crear Sala</button>
-      <button onclick="switchScreen('ui-3')" id="btn-ui-3" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">3. Unirse</button>
-      <button onclick="switchScreen('ui-4')" id="btn-ui-4" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">4. Lobby Host</button>
-      <button onclick="switchScreen('ui-5')" id="btn-ui-5" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">5. Lobby Guest</button>
-      <button onclick="switchScreen('ui-6')" id="btn-ui-6" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">6. 3-2-1 Countdown</button>
-      <button onclick="switchScreen('ui-7')" id="btn-ui-7" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">7. Ronda Viva (08s)</button>
-      <button onclick="switchScreen('ui-8')" id="btn-ui-8" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">8. Respuesta Enviada</button>
-      <button onclick="switchScreen('ui-9')" id="btn-ui-9" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">9. Tiempo Terminado</button>
-      <button onclick="switchScreen('ui-10')" id="btn-ui-10" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">10. Revelación</button>
-      <button onclick="switchScreen('ui-11')" id="btn-ui-11" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">11. Historial Final</button>
-      <button onclick="switchScreen('ui-12')" id="btn-ui-12" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">12. Modal Config</button>
-      <button onclick="switchScreen('ui-13')" id="btn-ui-13" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">13. Conexión</button>
-      <button onclick="switchScreen('ui-14')" id="btn-ui-14" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">14. Sala Expirada</button>
-    </div>
-  </aside>
-
   <!-- BANNER DINÁMICO DE CONEXIÓN (UI 13 en vivo) -->
   <div id="reconnect-banner" class="w-full bg-amber-500/15 border-b border-amber-500/40 text-amber-300 text-xs py-1.5 px-4 flex items-center justify-center gap-2 hidden">
     <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
@@ -131,7 +106,7 @@
   </div>
 
   <!-- MAIN CONTAINER (MOBILE FIRST ~390px, MAX-W-MD EN DESKTOP CENTRADO CON ESPACIO NEGATIVO) -->
-  <main class="w-full max-w-md mx-auto px-4 py-4 min-h-[calc(100vh-50px)] flex flex-col justify-between relative">
+  <main class="w-full max-w-md mx-auto px-4 py-4 flex-1 flex flex-col justify-between relative">
 
     <!-- ========================================== -->
     <!-- UI 1: HOME / ENTRADA A LA ARENA -->
@@ -405,7 +380,6 @@
 
         <div class="flex items-center justify-between text-[10px] font-mono text-arena-muted pt-1">
           <span>No necesitas cuenta ni contraseña</span>
-          <button onclick="toggleJoinError()" class="text-gray-500 hover:text-gray-300 underline">Probar error 404</button>
         </div>
       </div>
     </div>
@@ -649,10 +623,6 @@
           </p>
         </div>
 
-        <!-- SIMULACIÓN DE INICIO -->
-        <button onclick="switchScreen('ui-6')" class="w-full bg-arena-cardborder hover:bg-gray-700 text-gray-300 py-2.5 rounded-xl text-xs font-mono transition text-center">
-          (Simular que el Host pulsa comenzar →)
-        </button>
       </div>
     </div>
 
@@ -702,10 +672,6 @@
         </div>
       </div>
 
-      <!-- BOTÓN PARA AVANZAR DIRECTO O AUTOMÁTICO -->
-      <button onclick="switchScreen('ui-7')" class="w-full gradient-btn text-white py-3 rounded-xl font-mono font-black text-sm tracking-wider uppercase shadow-glow-pink">
-        ¡FIGHT! (ENTRAR A LA RONDA VIVA)
-      </button>
     </div>
 
     <!-- ========================================== -->
@@ -851,10 +817,6 @@
         </div>
       </div>
 
-      <!-- ATALLO TRANSICIÓN -->
-      <button onclick="switchScreen('ui-9')" class="w-full bg-arena-cardborder hover:bg-gray-700 text-gray-300 py-2 rounded-xl text-xs font-mono transition text-center">
-        (Simular que el cronómetro llega a 00s →)
-      </button>
     </div>
 
     <!-- ========================================== -->
@@ -990,9 +952,6 @@
             <span>⚡ SIGUIENTE SHIT TEST</span>
             <span data-next-label class="text-xs font-mono font-normal">(RONDA 4 / 10)</span>
           </button>
-          <div class="text-center">
-            <span class="text-[10px] font-mono text-gray-500">Para invitados muestra: "Esperando al host..."</span>
-          </div>
         </div>
       </div>
     </div>
@@ -1219,9 +1178,6 @@
             </span>
           </div>
           <p class="text-[11px] font-mono text-gray-300">Recuperando estado de la sala... (No reinicia el cronómetro).</p>
-          <button onclick="toggleReconnectBanner()" class="text-xs font-mono text-amber-400 bg-amber-950/40 py-1 rounded border border-amber-500/30 text-center">
-            Alternar banner de alerta superior en vivo
-          </button>
         </div>
 
         <!-- 4. CONNECTION LOST -->
@@ -1301,17 +1257,6 @@
         activeEl.classList.remove('hidden');
       }
 
-      // Actualizar estilo en pestañas
-      document.querySelectorAll('.screen-tab').forEach(btn => {
-        btn.classList.remove('bg-arena-pink', 'text-white', 'font-bold');
-        btn.classList.add('bg-arena-card', 'text-gray-400');
-      });
-      const currentTab = document.getElementById('btn-' + screenId);
-      if (currentTab) {
-        currentTab.classList.remove('bg-arena-card', 'text-gray-400');
-        currentTab.classList.add('bg-arena-pink', 'text-white', 'font-bold');
-      }
-
     }
 
     function updateCharCount(textarea) {
@@ -1321,24 +1266,6 @@
 
     function submitAnswer() {
       switchScreen('ui-8');
-    }
-
-    function toggleJoinError() {
-      const validBox = document.getElementById('join-status-valid');
-      const errBox = document.getElementById('join-status-error');
-      if (validBox.classList.contains('hidden')) {
-        validBox.classList.remove('hidden');
-        errBox.classList.add('hidden');
-      } else {
-        validBox.classList.add('hidden');
-        errBox.classList.remove('hidden');
-        errBox.classList.add('flex');
-      }
-    }
-
-    function toggleReconnectBanner() {
-      const banner = document.getElementById('reconnect-banner');
-      banner.classList.toggle('hidden');
     }
 
     function setHistTab(tab) {
