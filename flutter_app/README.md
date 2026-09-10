@@ -31,7 +31,9 @@ firebase init hosting
 firebase deploy --only hosting
 ```
 
-Firebase Hosting entregará una URL `web.app` o `firebaseapp.com`.
+Firebase Hosting entrega la URL pública [shit-test-arena.web.app](https://shit-test-arena.web.app). El nombre exacto `shit-test.web.app` no está disponible: Firebase informa que está reservado globalmente por otro proyecto.
+
+El identificador con números (`shit-test-3bf22.web.app`) corresponde al sitio predeterminado generado por Firebase y se mantiene como respaldo del proyecto; la configuración de despliegue apunta al alias limpio.
 
 ## Fuente de verdad
 

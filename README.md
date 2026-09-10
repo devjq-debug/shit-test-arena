@@ -6,7 +6,9 @@ Juego multiplayer mobile-first para practicar respuestas rápidas con amigos. No
 
 La versión migrada vive en `flutter_app/` con separación DDD (`domain`, `application`, `infrastructure` y `presentation`). Firebase Authentication anónimo y Cloud Firestore son la fuente de verdad multiplayer.
 
-Demo pública: [shit-test-3bf22.web.app](https://shit-test-3bf22.web.app)
+Demo pública: [shit-test-arena.web.app](https://shit-test-arena.web.app)
+
+El nombre exacto `shit-test.web.app` está reservado globalmente por otro proyecto de Firebase; por eso el alias público disponible sin números es `shit-test-arena.web.app`.
 
 Para ejecutarla o desplegarla, consulta [`flutter_app/README.md`](flutter_app/README.md).
 
