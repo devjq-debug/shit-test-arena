@@ -13,7 +13,7 @@ class FirebaseArenaRepository implements ArenaRepository {
   final _uuid = const Uuid();
 
   @override
-  Future<String> ensureAnonymousUser() async { return (await _auth.currentUser ?? (await _auth.signInAnonymously()).user!).uid; }
+  Future<String> ensureAnonymousUser() async { return (_auth.currentUser ?? (await _auth.signInAnonymously()).user!).uid; }
 
   @override
   Future<ArenaRoom> createRoom({required String nickname, required int seconds, required int rounds, required String category}) async {
@@ -30,7 +30,9 @@ class FirebaseArenaRepository implements ArenaRepository {
   @override
   Future<ArenaRoom> joinRoom({required String code, required String nickname}) async {
     final uid = await ensureAnonymousUser();
-    final result = await _db.collection('rooms').where('code', isEqualTo: code.toUpperCase()).limit(1).get();
+    // La consulta debe declarar el mismo filtro que permiten las reglas de
+    // Firestore; así los invitados solo pueden descubrir salas en espera.
+    final result = await _db.collection('rooms').where('code', isEqualTo: code.toUpperCase()).where('status', isEqualTo: 'waiting').limit(1).get();
     if (result.docs.isEmpty) throw StateError('Sala no encontrada');
     final roomRef = result.docs.first.reference;
     final room = result.docs.first.data();
