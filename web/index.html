@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>SHIT TEST ARENA — Underground Fight Edition</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            arena: {
+              black: '#0a0a0c',
+              dark: '#121215',
+              card: '#18181c',
+              cardborder: '#27272e',
+              pink: '#ff1a75',
+              pinkglow: '#ff2a85',
+              orange: '#f97316',
+              amber: '#f59e0b',
+              gold: '#fbbf24',
+              green: '#10b981',
+              red: '#ef4444',
+              muted: '#8b8b98'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Menlo', 'monospace']
+          },
+          boxShadow: {
+            'glow-pink': '0 0 25px -4px rgba(255, 26, 117, 0.45)',
+            'glow-orange': '0 0 25px -4px rgba(249, 115, 22, 0.45)',
+            'card': '0 8px 30px rgba(0, 0, 0, 0.55)'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap');
+    
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: #0a0a0c;
+      color: #f3f4f6;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0e0e11;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #27272e;
+      border-radius: 999px;
+    }
+
+    .pulse-ring {
+      animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.12); opacity: 0.3; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    .text-stroke-title {
+      letter-spacing: -0.04em;
+    }
+
+    .gradient-btn {
+      background: linear-gradient(135deg, #ff1a75 0%, #f97316 100%);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .gradient-btn:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+      box-shadow: 0 0 25px rgba(255, 26, 117, 0.5);
+    }
+    .gradient-btn:active {
+      transform: translateY(1px);
+    }
+  </style>
+</head>
+<body class="bg-arena-black text-gray-100 antialiased min-h-screen flex flex-col items-center justify-start selection:bg-arena-pink selection:text-white">
+
+  <!-- TOP BAR NAVEGADOR DE ESTADOS / SWITCHER DE VISTAS PARA PRUEBA COMPLETA -->
+  <aside aria-label="Selector de pantalla interactiva" class="w-full bg-[#111115] border-b border-arena-cardborder/80 sticky top-0 z-50 px-3 py-2 flex flex-wrap items-center justify-between gap-2 shadow-md">
+    <div class="flex items-center gap-2">
+      <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-gradient-to-br from-arena-pink to-arena-orange text-white font-black text-xs">⚡</span>
+      <span class="text-xs font-mono font-bold tracking-wider text-gray-300">EXPLORADOR DE INTERFACES</span>
+      <span class="text-[10px] bg-arena-pink/20 text-arena-pink px-2 py-0.5 rounded border border-arena-pink/30 font-mono">14 SCREENS</span>
+    </div>
+    <div class="flex items-center gap-1.5 overflow-x-auto max-w-full py-0.5 no-scrollbar">
+      <button onclick="switchScreen('ui-1')" id="btn-ui-1" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-pink text-white font-bold">1. Home</button>
+      <button onclick="switchScreen('ui-2')" id="btn-ui-2" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">2. Crear Sala</button>
+      <button onclick="switchScreen('ui-3')" id="btn-ui-3" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">3. Unirse</button>
+      <button onclick="switchScreen('ui-4')" id="btn-ui-4" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">4. Lobby Host</button>
+      <button onclick="switchScreen('ui-5')" id="btn-ui-5" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">5. Lobby Guest</button>
+      <button onclick="switchScreen('ui-6')" id="btn-ui-6" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">6. 3-2-1 Countdown</button>
+      <button onclick="switchScreen('ui-7')" id="btn-ui-7" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">7. Ronda Viva (08s)</button>
+      <button onclick="switchScreen('ui-8')" id="btn-ui-8" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">8. Respuesta Enviada</button>
+      <button onclick="switchScreen('ui-9')" id="btn-ui-9" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">9. Tiempo Terminado</button>
+      <button onclick="switchScreen('ui-10')" id="btn-ui-10" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">10. Revelación</button>
+      <button onclick="switchScreen('ui-11')" id="btn-ui-11" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">11. Historial Final</button>
+      <button onclick="switchScreen('ui-12')" id="btn-ui-12" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">12. Modal Config</button>
+      <button onclick="switchScreen('ui-13')" id="btn-ui-13" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">13. Conexión</button>
+      <button onclick="switchScreen('ui-14')" id="btn-ui-14" class="screen-tab px-2.5 py-1 rounded text-xs font-mono transition bg-arena-card border border-arena-cardborder text-gray-400 hover:text-white">14. Sala Expirada</button>
+    </div>
+  </aside>
+
+  <!-- BANNER DINÁMICO DE CONEXIÓN (UI 13 en vivo) -->
+  <div id="reconnect-banner" class="w-full bg-amber-500/15 border-b border-amber-500/40 text-amber-300 text-xs py-1.5 px-4 flex items-center justify-center gap-2 hidden">
+    <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+    <span class="font-mono font-bold">⚠ RECONECTANDO CON LA ARENA...</span>
+    <span class="text-amber-200/70">Recuperando estado de la sala...</span>
+  </div>
+
+  <!-- MAIN CONTAINER (MOBILE FIRST ~390px, MAX-W-MD EN DESKTOP CENTRADO CON ESPACIO NEGATIVO) -->
+  <main class="w-full max-w-md mx-auto px-4 py-4 min-h-[calc(100vh-50px)] flex flex-col justify-between relative">
+
+    <!-- ========================================== -->
+    <!-- UI 1: HOME / ENTRADA A LA ARENA -->
+    <!-- ========================================== -->
+    <div id="screen-ui-1" class="screen-container flex flex-col justify-between flex-1 gap-6">
+      <!-- HEADER COMPACTO -->
+      <header class="flex items-center justify-between py-2 border-b border-arena-cardborder/60">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-arena-pink to-arena-orange p-[1.5px] shadow-sm">
+            <div class="w-full h-full bg-arena-black rounded-[7px] flex items-center justify-center font-black text-white text-base">⚡</div>
+          </div>
+          <div>
+            <div class="font-black text-sm tracking-wider uppercase bg-gradient-to-r from-white via-gray-100 to-gray-400 bg-clip-text text-transparent">SHIT TEST ARENA</div>
+            <div class="text-[9px] font-mono tracking-widest text-arena-muted uppercase">Social Response Training</div>
+          </div>
+        </div>
+        <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono font-semibold">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          LIVE MULTIPLAYER
+        </div>
+      </header>
+
+      <!-- CENTRO DE PANTALLA -->
+      <div class="flex flex-col items-center text-center my-auto py-4">
+        <!-- BADGE -->
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-arena-pink/15 border border-arena-pink/30 text-arena-pink text-xs font-mono font-bold tracking-wider mb-4 shadow-sm">
+          <span>⚡ SOCIAL COMBAT TRAINING</span>
+          <span class="text-[9px] bg-arena-pink text-white px-1.5 py-0.2 rounded font-mono">100% RAW</span>
+        </div>
+
+        <!-- TÍTULO GRANDE -->
+        <h1 class="text-4xl sm:text-5xl font-black uppercase tracking-tight leading-[0.95] mb-3">
+          <span class="text-white block">SHIT TEST</span>
+          <span class="bg-gradient-to-r from-arena-pink via-pink-500 to-arena-orange bg-clip-text text-transparent block mt-1 drop-shadow-sm">ARENA</span>
+        </h1>
+
+        <!-- SUBTÍTULO -->
+        <p class="text-base font-bold text-gray-200 mb-2">Think fast. Answer better.</p>
+        <p class="text-xs text-gray-400 max-w-xs leading-relaxed mb-8">
+          Practica respuestas rápidas con tus amigos en tiempo real. Entrena tu calibración y marco social bajo presión de reloj.
+        </p>
+
+        <!-- ACCIONES PRINCIPALES (DOMINANTE CREAR SALA) -->
+        <div class="w-full space-y-3">
+          <button onclick="switchScreen('ui-2')" class="w-full gradient-btn text-white py-3.5 px-6 rounded-xl font-black text-sm tracking-wider uppercase shadow-glow-pink flex items-center justify-center gap-2 group">
+            <span>⚡ CREAR SALA</span>
+            <span class="text-xs transition-transform group-hover:translate-x-1">→</span>
+          </button>
+          
+          <button onclick="switchScreen('ui-3')" class="w-full bg-arena-card hover:bg-arena-cardborder text-gray-200 border border-arena-cardborder py-3 px-6 rounded-xl font-bold text-sm tracking-wide transition flex items-center justify-center gap-2">
+            <span>ENTRAR A UNA SALA</span>
+          </button>
+        </div>
+
+        <!-- EXPLICACIÓN SIN REGISTRO -->
+        <div class="flex items-center gap-2 text-[11px] font-mono text-arena-muted mt-5 uppercase tracking-wider">
+          <span class="w-1.5 h-1.5 rounded-full bg-arena-amber"></span>
+          <span>SIN REGISTRO</span>
+          <span class="text-gray-600">|</span>
+          <span>SOLO NICKNAME + CÓDIGO</span>
+        </div>
+      </div>
+
+      <!-- SECCIÓN INFERIOR: HOW IT WORKS -->
+      <div class="w-full bg-arena-card/60 border border-arena-cardborder/70 rounded-2xl p-4 mt-auto">
+        <div class="flex items-center justify-between mb-3 border-b border-arena-cardborder/40 pb-2">
+          <span class="text-[10px] font-mono font-bold tracking-widest text-arena-pink uppercase">HOW IT WORKS</span>
+          <span class="text-[10px] font-mono text-gray-500">0% TEORÍA · 100% PRÁCTICA</span>
+        </div>
+        <div class="grid grid-cols-3 gap-2 text-left">
+          <div class="bg-arena-dark/70 p-2.5 rounded-xl border border-arena-cardborder/40">
+            <div class="text-arena-pink font-mono font-black text-xs mb-1">01</div>
+            <div class="text-[11px] font-bold text-gray-200 leading-tight">Entra a una sala</div>
+            <div class="text-[9px] text-gray-400 mt-1">Crea tu código en 1 clic o abre el link compartido.</div>
+          </div>
+          <div class="bg-arena-dark/70 p-2.5 rounded-xl border border-arena-cardborder/40">
+            <div class="text-arena-orange font-mono font-black text-xs mb-1">02</div>
+            <div class="text-[11px] font-bold text-gray-200 leading-tight">Responde al reloj</div>
+            <div class="text-[9px] text-gray-400 mt-1">Mismo shit test para todos. El reloj corre implacable.</div>
+          </div>
+          <div class="bg-arena-dark/70 p-2.5 rounded-xl border border-arena-cardborder/40">
+            <div class="text-emerald-400 font-mono font-black text-xs mb-1">03</div>
+            <div class="text-[11px] font-bold text-gray-200 leading-tight">Compara respuestas</div>
+            <div class="text-[9px] text-gray-400 mt-1">Se revelan todas a la vez. Sin filtros ni disculpas.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- UI 2: CREAR SALA -->
+    <!-- ========================================== -->
+    <div id="screen-ui-2" class="screen-container flex flex-col justify-between flex-1 gap-4 hidden">
+      <!-- HEADER -->
+      <header class="flex items-center justify-between py-2 border-b border-arena-cardborder/60">
+        <button onclick="switchScreen('ui-1')" class="text-xs font-mono text-gray-400 hover:text-white flex items-center gap-1 transition">
+          <span>← VOLVER</span>
+        </button>
+        <div class="font-black text-xs tracking-wider uppercase text-white">SHIT TEST ARENA</div>
+        <div class="text-[10px] font-mono text-arena-pink font-bold bg-arena-pink/10 px-2 py-0.5 rounded border border-arena-pink/30">
+          CREATE MATCH
+        </div>
+      </header>
+
+      <!-- CARD PRINCIPAL -->
+      <div class="bg-arena-card border border-arena-cardborder rounded-2xl p-5 shadow-card flex flex-col gap-4">
+        <div>
+          <div class="text-[10px] font-mono text-arena-orange font-bold uppercase tracking-widest">HOST SETUP</div>
+          <h2 class="text-xl font-black text-white tracking-tight mt-0.5">CREA TU COMBATE</h2>
+          <p class="text-xs text-gray-400">Configura la arena antes de invitar a los demás.</p>
+        </div>
+
+        <!-- CAMPO NICKNAME -->
+        <div>
+          <label class="block text-[10px] font-mono uppercase tracking-wider text-gray-300 font-bold mb-1.5">TU NICKNAME (SIN CUENTA)</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 font-mono text-xs">👑</span>
+            <input type="text" id="host-nick" value="Jeanpiere" maxlength="20" class="w-full bg-arena-dark border border-arena-cardborder focus:border-arena-pink focus:ring-1 focus:ring-arena-pink rounded-xl pl-8 pr-3 py-2.5 text-sm text-white font-medium placeholder-gray-500 transition"/>
+          </div>
+        </div>
+
+        <!-- TIEMPO POR RESPUESTA -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="text-[10px] font-mono uppercase tracking-wider text-gray-300 font-bold">TIEMPO POR RESPUESTA</label>
+            <span class="text-[10px] font-mono text-arena-pink font-bold">10s Recomendado</span>
+          </div>
+          <div class="grid grid-cols-6 gap-1 bg-arena-dark p-1 rounded-xl border border-arena-cardborder text-center text-xs font-mono">
+            <button type="button" class="py-1.5 rounded-lg text-gray-400 hover:text-white">5s</button>
+            <button type="button" class="py-1.5 rounded-lg bg-gradient-to-r from-arena-pink to-arena-orange text-white font-bold shadow-sm">10s</button>
+            <button type="button" class="py-1.5 rounded-lg text-gray-400 hover:text-white">15s</button>
+            <button type="button" class="py-1.5 rounded-lg text-gray-400 hover:text-white">20s</button>
+            <button type="button" class="py-1.5 rounded-lg text-gray-400 hover:text-white">30s</button>
+            <button type="button" class="py-1.5 rounded-lg text-gray-400 hover:text-white text-[10px]">CUST</button>
+          </div>
+        </div>
+
+        <!-- RONDAS -->
+        <div>
+          <label class="block text-[10px] font-mono uppercase tracking-wider text-gray-300 font-bold mb-1.5">CANTIDAD DE RONDAS</label>
+          <div class="grid grid-cols-4 gap-1.5 bg-arena-dark p-1 rounded-xl border border-arena-cardborder text-center text-xs font-mono">
+            <button type="button" class="py-1.5 rounded-lg text-gray-400 hover:text-white">5</button>
+            <button type="button" class="py-1.5 rounded-lg bg-arena-cardborder text-white font-bold border border-arena-pink/50">10</button>
+            <button type="button" class="py-1.5 rounded-lg text-gray-400 hover:text-white">15</button>
+            <button type="button" class="py-1.5 rounded-lg text-gray-400 hover:text-white">20</button>
+          </div>
+        </div>
+
+        <!-- CATEGORÍA -->
+        <div>
+          <label class="block text-[10px] font-mono uppercase tracking-wider text-gray-300 font-bold mb-1.5">CATEGORÍA DEL BANCO</label>
+          <select class="w-full bg-arena-dark border border-arena-cardborder rounded-xl px-3 py-2 text-xs text-gray-200 font-medium focus:border-arena-pink focus:ring-1 focus:ring-arena-pink">
+            <option selected>Todas las categorías (100+ tests)</option>
+            <option>Provocaciones callejeras</option>
+            <option>Bromas y juegos de marco</option>
+            <option>Presión social en grupo</option>
+            <option>Conversación casual</option>
+            <option>Improvisación pura</option>
+            <option>Difíciles / Sin piedad</option>
+          </select>
+        </div>
+
+        <!-- TOGGLE ORDEN ALEATORIO -->
+        <div class="flex items-center justify-between bg-arena-dark/70 p-3 rounded-xl border border-arena-cardborder/70">
+          <div>
+            <div class="text-xs font-bold text-gray-200">ORDEN ALEATORIO</div>
+            <div class="text-[10px] text-gray-400">Preguntas sin repetición por partida</div>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" checked class="sr-only peer">
+            <div class="w-9 h-5 bg-arena-cardborder peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-arena-pink"></div>
+          </label>
+        </div>
+
+        <!-- RESUMEN INFERIOR -->
+        <div class="bg-arena-dark p-3 rounded-xl border border-arena-cardborder flex items-center justify-between text-center font-mono">
+          <div>
+            <div class="text-[9px] text-gray-500 uppercase">RONDAS</div>
+            <div class="text-xs font-bold text-white">10 RONDAS</div>
+          </div>
+          <div class="w-px h-6 bg-arena-cardborder"></div>
+          <div>
+            <div class="text-[9px] text-gray-500 uppercase">TIEMPO</div>
+            <div class="text-xs font-bold text-arena-orange">10 SEGUNDOS</div>
+          </div>
+          <div class="w-px h-6 bg-arena-cardborder"></div>
+          <div>
+            <div class="text-[9px] text-gray-500 uppercase">BANCO</div>
+            <div class="text-xs font-bold text-arena-pink">TODAS</div>
+          </div>
+        </div>
+
+        <!-- CTA DOMINANTE -->
+        <button onclick="switchScreen('ui-4')" class="w-full gradient-btn text-white py-3.5 px-4 rounded-xl font-black text-sm tracking-wider uppercase shadow-glow-pink flex items-center justify-center gap-2">
+          <span>⚡ CREAR SALA</span>
+          <span>→</span>
+        </button>
+
+        <p class="text-[10px] text-center font-mono text-arena-muted">
+          No necesitas cuenta. La sala será temporal (expira en 4 horas).
+        </p>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- UI 3: UNIRSE A SALA -->
+    <!-- ========================================== -->
+    <div id="screen-ui-3" class="screen-container flex flex-col justify-between flex-1 gap-4 hidden">
+      <!-- HEADER -->
+      <header class="flex items-center justify-between py-2 border-b border-arena-cardborder/60">
+        <button onclick="switchScreen('ui-1')" class="text-xs font-mono text-gray-400 hover:text-white flex items-center gap-1 transition">
+          <span>← VOLVER</span>
+        </button>
+        <div class="font-black text-xs tracking-wider uppercase text-white">SHIT TEST ARENA</div>
+        <div class="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
+          JOIN MATCH
+        </div>
+      </header>
+
+      <!-- CARD CENTRAL -->
+      <div class="bg-arena-card border border-arena-cardborder rounded-2xl p-5 shadow-card flex flex-col gap-4 my-auto">
+        <div>
+          <div class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-arena-pink/15 border border-arena-pink/30 text-arena-pink text-[10px] font-mono font-bold uppercase mb-1">
+            JOIN THE ARENA
+          </div>
+          <h2 class="text-xl font-black text-white tracking-tight">ENTRA AL COMBATE</h2>
+          <p class="text-xs text-gray-400">Introduce el código que te compartieron por link o mensaje.</p>
+        </div>
+
+        <!-- CAMPO GRANDE CÓDIGO DE SALA -->
+        <div>
+          <label class="block text-[10px] font-mono uppercase tracking-wider text-gray-300 font-bold mb-1.5">CÓDIGO DE SALA</label>
+          <div class="relative">
+            <input type="text" id="join-code" value="K 7 P 4 Q" maxlength="10" class="w-full bg-arena-dark border-2 border-arena-cardborder focus:border-arena-pink focus:ring-0 rounded-xl px-4 py-3 text-center text-xl font-black text-arena-gold tracking-[0.35em] uppercase transition placeholder-gray-600 font-mono"/>
+            <button class="absolute right-3 top-3 text-[10px] font-mono text-gray-400 hover:text-white bg-arena-card px-2 py-1 rounded border border-arena-cardborder">PEGAR</button>
+          </div>
+        </div>
+
+        <!-- CAMPO TU NICKNAME -->
+        <div>
+          <label class="block text-[10px] font-mono uppercase tracking-wider text-gray-300 font-bold mb-1.5">TU NICKNAME</label>
+          <input type="text" id="join-nick" value="Juanito" maxlength="20" class="w-full bg-arena-dark border border-arena-cardborder focus:border-arena-pink focus:ring-1 focus:ring-arena-pink rounded-xl px-4 py-2.5 text-sm text-white font-medium placeholder-gray-500 transition"/>
+        </div>
+
+        <!-- ESTADO VÁLIDO ENCONTRADO -->
+        <div id="join-status-valid" class="bg-emerald-950/30 border border-emerald-500/40 rounded-xl p-3 flex items-start gap-2.5">
+          <span class="text-emerald-400 font-mono font-black text-sm">✓</span>
+          <div class="text-xs">
+            <div class="font-bold text-emerald-300 font-mono">SALA ENCONTRADA · K7P4Q</div>
+            <div class="text-emerald-200/80 text-[11px] mt-0.5">
+              Host: <span class="font-bold text-white">Jeanpiere</span> · Jugadores: <span class="font-bold text-white">2/8</span>
+            </div>
+            <div class="text-[10px] font-mono text-emerald-400/80 mt-1">10 rondas • 10 segundos • Provocaciones</div>
+          </div>
+        </div>
+
+        <!-- ESTADO ERROR DEMOSTRATIVO (TOGGLE) -->
+        <div id="join-status-error" class="bg-red-950/30 border border-red-500/40 rounded-xl p-3 items-start gap-2.5 hidden">
+          <span class="text-red-400 font-mono font-black text-sm">⚠</span>
+          <div class="text-xs">
+            <div class="font-bold text-red-400 font-mono">SALA NO ENCONTRADA</div>
+            <div class="text-red-200/80 text-[11px]">Verifica el código e inténtalo otra vez o crea una sala nueva.</div>
+          </div>
+        </div>
+
+        <!-- CTA ENTRAR -->
+        <button onclick="switchScreen('ui-5')" class="w-full gradient-btn text-white py-3.5 px-4 rounded-xl font-black text-sm tracking-wider uppercase shadow-glow-pink flex items-center justify-center gap-2">
+          <span>⚡ ENTRAR A LA SALA</span>
+          <span>→</span>
+        </button>
+
+        <div class="flex items-center justify-between text-[10px] font-mono text-arena-muted pt-1">
+          <span>No necesitas cuenta ni contraseña</span>
+          <button onclick="toggleJoinError()" class="text-gray-500 hover:text-gray-300 underline">Probar error 404</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- UI 4: LOBBY DEL HOST -->
+    <!-- ========================================== -->
+    <div id="screen-ui-4" class="screen-container flex flex-col justify-between flex-1 gap-4 hidden">
+      <!-- HEADER -->
+      <header class="flex items-center justify-between py-2 border-b border-arena-cardborder/60">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <div class="font-black text-xs tracking-wider uppercase text-white">SHIT TEST ARENA</div>
+        </div>
+        <div class="flex items-center gap-2 font-mono text-xs">
+          <span class="text-arena-gold font-bold bg-arena-card px-2 py-0.5 rounded border border-arena-cardborder">SALA: K7P4Q</span>
+          <span class="text-arena-pink font-bold text-[10px] bg-arena-pink/15 px-2 py-0.5 rounded border border-arena-pink/30">● LOBBY HOST</span>
+        </div>
+      </header>
+
+      <!-- CARD PRINCIPAL LOBBY HOST -->
+      <div class="bg-arena-card border border-arena-cardborder rounded-2xl p-4 shadow-card flex flex-col gap-4">
+        
+        <!-- CABECERA DE SALA Y CÓDIGO -->
+        <div class="bg-arena-dark/90 rounded-xl p-3 border border-arena-cardborder flex flex-col gap-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-mono font-bold text-arena-pink bg-arena-pink/10 px-2 py-0.5 rounded border border-arena-pink/20">SALA EN ESPERA</span>
+            <span class="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> SALA ACTIVA
+            </span>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-[9px] font-mono text-gray-400 uppercase">CÓDIGO DE COMBATE</div>
+              <div class="text-2xl font-mono font-black text-arena-gold tracking-widest">K7P4Q</div>
+            </div>
+            <div class="flex gap-1.5">
+              <button onclick="alert('Código K7P4Q copiado al portapapeles')" class="px-2.5 py-1.5 bg-arena-card hover:bg-arena-cardborder text-gray-200 text-xs font-mono font-bold rounded-lg border border-arena-cardborder transition flex items-center gap-1">
+                <span>📋</span> <span>COPIAR</span>
+              </button>
+              <button onclick="alert('Link copiado: https://shit-test-arena.vercel.app/room/K7P4Q')" class="px-2.5 py-1.5 bg-arena-pink/20 hover:bg-arena-pink/30 text-arena-pink text-xs font-mono font-bold rounded-lg border border-arena-pink/30 transition flex items-center gap-1">
+                <span>🔗</span> <span>LINK</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="text-[10px] font-mono text-gray-400 bg-black/40 px-2 py-1 rounded truncate border border-arena-cardborder/40">
+            https://shit-test-arena.vercel.app/room/K7P4Q
+          </div>
+        </div>
+
+        <!-- SECCIÓN: JUGADORES CONECTADOS -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-[10px] font-mono uppercase tracking-wider text-gray-300 font-bold flex items-center gap-1.5">
+              <span>👥 GLADIADORES CONECTADOS</span>
+              <span class="text-arena-pink font-bold">(3/8)</span>
+            </div>
+            <span class="text-[9px] font-mono text-emerald-400">EN TIEMPO REAL</span>
+          </div>
+
+          <div class="space-y-1.5">
+            <!-- JUGADOR 1 HOST -->
+            <div class="bg-arena-dark/90 p-2.5 rounded-xl border border-arena-pink/40 flex items-center justify-between shadow-sm">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-arena-pink/20 border border-arena-pink/50 text-arena-pink font-black text-xs flex items-center justify-center font-mono">👑</div>
+                <div>
+                  <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span>Jeanpiere</span>
+                    <span class="text-[9px] bg-arena-pink text-white font-mono px-1 rounded font-bold">HOST</span>
+                  </div>
+                  <div class="text-[10px] font-mono text-gray-400">100% Calibrado · Host del ring</div>
+                </div>
+              </div>
+              <span class="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">✓ LISTO</span>
+            </div>
+
+            <!-- JUGADOR 2 GUEST -->
+            <div class="bg-arena-dark/70 p-2.5 rounded-xl border border-arena-cardborder flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-arena-orange/20 border border-arena-orange/40 text-arena-orange font-black text-xs flex items-center justify-center font-mono">⚡</div>
+                <div>
+                  <div class="text-xs font-bold text-gray-200">Juanito</div>
+                  <div class="text-[10px] font-mono text-gray-400">Conexión 14ms · Picante</div>
+                </div>
+              </div>
+              <span class="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">✓ LISTO</span>
+            </div>
+
+            <!-- JUGADOR 3 GUEST -->
+            <div class="bg-arena-dark/70 p-2.5 rounded-xl border border-arena-cardborder flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-gray-800 text-gray-300 font-black text-xs flex items-center justify-center font-mono">🎯</div>
+                <div>
+                  <div class="text-xs font-bold text-gray-200">Pedro</div>
+                  <div class="text-[10px] font-mono text-gray-400">Conexión 22ms · Silencioso</div>
+                </div>
+              </div>
+              <span class="text-[10px] font-mono font-bold text-gray-300 bg-gray-800 px-2 py-0.5 rounded border border-gray-700">CONECTADO</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- REGLAS DEL RING -->
+        <div class="bg-arena-dark/70 p-3 rounded-xl border border-arena-cardborder flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-mono uppercase tracking-wider text-gray-300 font-bold">REGLAS DEL RING</span>
+            <button onclick="switchScreen('ui-12')" class="text-[10px] font-mono text-arena-pink hover:underline flex items-center gap-1 font-bold">
+              <span>⚙ EDITAR CONFIGURACIÓN</span>
+            </button>
+          </div>
+          <div class="grid grid-cols-4 gap-1 text-center font-mono">
+            <div class="bg-black/40 p-1.5 rounded-lg border border-arena-cardborder/40">
+              <div class="text-[8px] text-gray-500 uppercase">TIEMPO</div>
+              <div class="text-xs font-bold text-arena-orange">10s</div>
+            </div>
+            <div class="bg-black/40 p-1.5 rounded-lg border border-arena-cardborder/40">
+              <div class="text-[8px] text-gray-500 uppercase">RONDAS</div>
+              <div class="text-xs font-bold text-white">10</div>
+            </div>
+            <div class="bg-black/40 p-1.5 rounded-lg border border-arena-cardborder/40">
+              <div class="text-[8px] text-gray-500 uppercase">BANCO</div>
+              <div class="text-xs font-bold text-arena-pink truncate">Provocaciones</div>
+            </div>
+            <div class="bg-black/40 p-1.5 rounded-lg border border-arena-cardborder/40">
+              <div class="text-[8px] text-gray-500 uppercase">ORDEN</div>
+              <div class="text-xs font-bold text-emerald-400">Aleat.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CTA INFERIOR DOMINANTE COMENZAR -->
+        <div class="space-y-1.5 pt-1">
+          <button onclick="switchScreen('ui-6')" class="w-full gradient-btn text-white py-3.5 px-4 rounded-xl font-black text-sm tracking-wider uppercase shadow-glow-pink flex items-center justify-center gap-2">
+            <span>⚡ ENTRAR AL COMBATE</span>
+            <span class="text-xs bg-black/20 px-2 py-0.5 rounded font-mono">COMENZAR PARTIDA</span>
+          </button>
+          <p class="text-[10px] text-center font-mono text-arena-muted">
+            Solo el host puede iniciar. Todos los jugadores comenzarán simultáneamente.
+          </p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- UI 5: LOBBY DEL INVITADO (JUANITO) -->
+    <!-- ========================================== -->
+    <div id="screen-ui-5" class="screen-container flex flex-col justify-between flex-1 gap-4 hidden">
+      <!-- HEADER -->
+      <header class="flex items-center justify-between py-2 border-b border-arena-cardborder/60">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <div class="font-black text-xs tracking-wider uppercase text-white">SHIT TEST ARENA</div>
+        </div>
+        <div class="flex items-center gap-2 font-mono text-xs">
+          <span class="text-arena-gold font-bold bg-arena-card px-2 py-0.5 rounded border border-arena-cardborder">SALA: K7P4Q</span>
+          <span class="text-emerald-400 font-bold text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">ONLINE</span>
+        </div>
+      </header>
+
+      <!-- CARD LOBBY INVITADO -->
+      <div class="bg-arena-card border border-arena-cardborder rounded-2xl p-4 shadow-card flex flex-col gap-4">
+        
+        <!-- ESTADO INVITADO -->
+        <div class="bg-gradient-to-r from-arena-dark to-[#16161d] p-3 rounded-xl border border-arena-cardborder flex items-center justify-between">
+          <div>
+            <div class="text-[10px] font-mono text-arena-pink uppercase font-bold">ESTÁS DENTRO</div>
+            <div class="text-lg font-black text-white flex items-center gap-2">
+              <span>Juanito</span>
+              <span class="text-[10px] font-mono font-normal text-arena-orange bg-arena-orange/10 px-2 py-0.5 rounded border border-arena-orange/30">TÚ</span>
+            </div>
+          </div>
+          <span class="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/15 px-2.5 py-1 rounded-full border border-emerald-500/30 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span> CONNECTED
+          </span>
+        </div>
+
+        <!-- LISTA JUGADORES (SIN EDITAR / SIN COMENZAR) -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[10px] font-mono uppercase tracking-wider text-gray-300 font-bold">JUGADORES EN SALA (3/8)</span>
+            <span class="text-[9px] font-mono text-arena-muted">SALA K7P4Q</span>
+          </div>
+
+          <div class="space-y-1.5">
+            <div class="bg-arena-dark/70 p-2.5 rounded-xl border border-arena-pink/30 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-arena-pink font-mono text-xs">👑</span>
+                <span class="text-xs font-bold text-white">Jeanpiere</span>
+              </div>
+              <span class="text-[9px] font-mono text-arena-pink font-bold bg-arena-pink/15 px-2 py-0.5 rounded">HOST</span>
+            </div>
+            <div class="bg-arena-dark/90 p-2.5 rounded-xl border border-arena-orange/40 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-arena-orange font-mono text-xs">⚡</span>
+                <span class="text-xs font-bold text-white">Juanito (Tú)</span>
+              </div>
+              <span class="text-[9px] font-mono text-emerald-400 font-bold bg-emerald-500/15 px-2 py-0.5 rounded">LISTO</span>
+            </div>
+            <div class="bg-arena-dark/70 p-2.5 rounded-xl border border-arena-cardborder flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-gray-400 font-mono text-xs">🎯</span>
+                <span class="text-xs font-bold text-gray-300">Pedro</span>
+              </div>
+              <span class="text-[9px] font-mono text-gray-400 font-bold bg-gray-800 px-2 py-0.5 rounded">CONECTADO</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONFIGURACIÓN READONLY -->
+        <div class="bg-arena-dark/50 p-3 rounded-xl border border-arena-cardborder/60 flex items-center justify-between text-center font-mono">
+          <div>
+            <div class="text-[8px] text-gray-500 uppercase">TIEMPO</div>
+            <div class="text-xs font-bold text-arena-orange">10 SEGUNDOS</div>
+          </div>
+          <div class="w-px h-5 bg-arena-cardborder"></div>
+          <div>
+            <div class="text-[8px] text-gray-500 uppercase">RONDAS</div>
+            <div class="text-xs font-bold text-white">10 RONDAS</div>
+          </div>
+          <div class="w-px h-5 bg-arena-cardborder"></div>
+          <div>
+            <div class="text-[8px] text-gray-500 uppercase">BANCO</div>
+            <div class="text-xs font-bold text-arena-pink">PROVOCACIONES</div>
+          </div>
+        </div>
+
+        <!-- PANEL GRANDE: ESPERANDO AL HOST -->
+        <div class="bg-arena-dark border-2 border-dashed border-arena-cardborder rounded-2xl p-6 text-center flex flex-col items-center justify-center gap-2 my-1">
+          <div class="w-10 h-10 rounded-full bg-arena-pink/15 text-arena-pink flex items-center justify-center font-mono text-base animate-pulse">
+            ⏳
+          </div>
+          <h3 class="text-sm font-black text-white uppercase tracking-wider">ESPERANDO AL HOST...</h3>
+          <p class="text-xs text-gray-300">
+            <span class="text-arena-pink font-bold">Jeanpiere</span> iniciará la partida en cualquier momento.
+          </p>
+          <p class="text-[10px] text-arena-muted font-mono mt-1">
+            Puedes dejar esta pantalla abierta. La partida comenzará automáticamente para todos.
+          </p>
+        </div>
+
+        <!-- SIMULACIÓN DE INICIO -->
+        <button onclick="switchScreen('ui-6')" class="w-full bg-arena-cardborder hover:bg-gray-700 text-gray-300 py-2.5 rounded-xl text-xs font-mono transition text-center">
+          (Simular que el Host pulsa comenzar →)
+        </button>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- UI 6: CUENTA REGRESIVA PREVIA (3, 2, 1) -->
+    <!-- ========================================== -->
+    <div id="screen-ui-6" class="screen-container flex flex-col justify-between flex-1 gap-4 hidden">
+      <!-- HEADER MINIMAL -->
+      <header class="flex items-center justify-between py-2 border-b border-arena-cardborder/60 font-mono text-xs">
+        <span class="text-white font-bold">SHIT TEST ARENA</span>
+        <span class="text-arena-pink font-bold">SALA: K7P4Q</span>
+        <span class="text-arena-orange font-bold">MATCH STARTING</span>
+      </header>
+
+      <!-- CONTENIDO CENTRAL TRANSICIÓN -->
+      <div class="my-auto flex flex-col items-center justify-center text-center py-6">
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-arena-orange/20 border border-arena-orange/40 text-arena-orange text-xs font-mono font-bold tracking-wider mb-4">
+          <span class="w-2 h-2 rounded-full bg-arena-orange animate-ping"></span>
+          TODOS CONECTADOS · INICIANDO
+        </div>
+
+        <h2 class="text-2xl font-black text-gray-300 tracking-tight mb-2">PREPÁRATE</h2>
+        
+        <!-- NÚMERO ENORME CUENTA REGRESIVA -->
+        <div class="relative my-4 flex items-center justify-center">
+          <div class="w-36 h-36 rounded-full bg-gradient-to-tr from-arena-pink/30 to-arena-orange/30 border border-arena-pink/50 flex items-center justify-center shadow-glow-pink">
+            <span id="countdown-display" class="text-7xl font-black font-mono text-white tracking-tighter drop-shadow-lg">3</span>
+          </div>
+        </div>
+
+        <p class="text-sm font-bold text-gray-200 mt-2">La primera ronda está por comenzar.</p>
+        <p class="text-xs text-gray-400 font-mono mt-1">Sin filtros. Sin justificaciones. Responde antes de 10s.</p>
+
+        <!-- INFO SALA -->
+        <div class="flex items-center gap-3 text-xs font-mono text-gray-300 mt-6 bg-arena-card px-4 py-2 rounded-xl border border-arena-cardborder">
+          <span>10 RONDAS</span>
+          <span>•</span>
+          <span>10 SEGUNDOS</span>
+          <span>•</span>
+          <span>3 JUGADORES</span>
+        </div>
+
+        <div class="flex items-center gap-3 text-[11px] font-mono text-emerald-400 mt-3">
+          <span>Jeanpiere ✓</span>
+          <span>Juanito ✓</span>
+          <span>Pedro ✓</span>
+        </div>
+      </div>
+
+      <!-- BOTÓN PARA AVANZAR DIRECTO O AUTOMÁTICO -->
+      <button onclick="switchScreen('ui-7')" class="w-full gradient-btn text-white py-3 rounded-xl font-mono font-black text-sm tracking-wider uppercase shadow-glow-pink">
+        ¡FIGHT! (ENTRAR A LA RONDA VIVA)
+      </button>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- UI 7: RONDA VIVA / ESCRIBIENDO RESPUESTA (PANTALLA CLAVE) -->
+    <!-- ========================================== -->
+    <div id="screen-ui-7" class="screen-container flex flex-col justify-between flex-1 gap-3 hidden">
+      <!-- HEADER RONDA VIVA -->
+      <header class="flex items-center justify-between py-2 border-b border-arena-cardborder/60">
+        <div class="font-black text-xs tracking-wider uppercase text-white">SHIT TEST ARENA</div>
+        <div class="flex items-center gap-2 font-mono text-xs">
+          <span class="text-arena-gold font-bold">K7P4Q</span>
+          <span class="text-gray-500">|</span>
+          <span class="text-white font-bold bg-arena-card px-2 py-0.5 rounded border border-arena-cardborder">RONDA 3 / 10</span>
+          <span class="text-emerald-400 font-bold flex items-center gap-1 text-[10px]">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> VIVA
+          </span>
+        </div>
+      </header>
+
+      <!-- CONTENIDO CENTRAL: PREGUNTA Y CRONÓMETRO GIGANTE -->
+      <div class="flex flex-col gap-3">
+        <!-- CARD PREGUNTA SHIT TEST -->
+        <div class="bg-arena-card border border-arena-cardborder rounded-2xl p-4 shadow-card text-center relative overflow-hidden">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[9px] font-mono font-bold text-arena-pink bg-arena-pink/15 px-2 py-0.5 rounded border border-arena-pink/30 uppercase">PROVOCACIÓN</span>
+            <span class="text-[9px] font-mono text-arena-muted">SHIT TEST #03</span>
+          </div>
+
+          <h3 class="text-xl sm:text-2xl font-black text-white leading-tight px-2 py-2">
+            “Seguro eres así con todas.”
+          </h3>
+
+          <!-- CRONÓMETRO GIGANTE VISIBLE -->
+          <div class="flex flex-col items-center justify-center my-1">
+            <div class="flex items-baseline gap-2">
+              <span id="timer-number" class="text-6xl sm:text-7xl font-mono font-black text-arena-orange tracking-tight leading-none drop-shadow-md">08</span>
+              <span class="text-xs font-mono font-bold text-arena-muted uppercase">SEG</span>
+            </div>
+            <!-- BARRA DE TIEMPO PROGRESIVA -->
+            <div class="w-full bg-arena-dark h-2 rounded-full overflow-hidden mt-2 border border-arena-cardborder/70">
+              <div class="bg-gradient-to-r from-arena-pink to-arena-orange h-full rounded-full w-[80%] transition-all duration-300"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FORMULARIO DE RESPUESTA -->
+        <div class="bg-arena-card border border-arena-cardborder rounded-2xl p-3.5 shadow-card flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <label class="text-[10px] font-mono uppercase tracking-wider text-gray-300 font-bold">¿QUÉ RESPONDERÍAS?</label>
+            <span id="char-count" class="text-[10px] font-mono text-arena-muted">0 / 300</span>
+          </div>
+
+          <textarea id="answer-input" rows="3" maxlength="300" placeholder="Escribe tu respuesta rápida y con marco..." oninput="updateCharCount(this)" class="w-full bg-arena-dark border border-arena-cardborder focus:border-arena-pink focus:ring-1 focus:ring-arena-pink rounded-xl p-3 text-sm text-white placeholder-gray-500 font-medium resize-none transition leading-relaxed"></textarea>
+
+          <!-- BOTÓN ENVIAR RESPUESTA -->
+          <button onclick="submitAnswer()" class="w-full gradient-btn text-white py-3 px-4 rounded-xl font-black text-sm tracking-wider uppercase shadow-glow-pink flex items-center justify-center gap-2">
+            <span>⚡ ENVIAR RESPUESTA</span>
+          </button>
+        </div>
+
+        <!-- SECCIÓN: RESPUESTAS DE LOS DEMÁS (OCULTAS, SOLO ESTADO ✓) -->
+        <div class="bg-arena-dark/80 rounded-xl p-2.5 border border-arena-cardborder flex items-center justify-between text-xs font-mono">
+          <div class="text-[10px] text-gray-400 font-bold uppercase">ESTADO DE ENVÍO:</div>
+          <div class="flex items-center gap-3">
+            <span class="text-arena-pink font-bold">Jeanpiere ...</span>
+            <span class="text-emerald-400 font-bold">Juanito ✓</span>
+            <span class="text-gray-500 font-bold">Pedro ...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTÓN VISTA RÁPIDA -->
+      <div class="text-center">
+        <span class="text-[10px] font-mono text-arena-muted">Las respuestas de los demás permanecen ocultas hasta llegar a 00s.</span>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- UI 8: RESPUESTA ENVIADA / ESPERANDO AL RESTO -->
+    <!-- ========================================== -->
+    <div id="screen-ui-8" class="screen-container flex flex-col justify-between flex-1 gap-3 hidden">
+      <!-- HEADER -->
+      <header class="flex items-center justify-between py-2 border-b border-arena-cardborder/60">
+        <div class="font-black text-xs tracking-wider uppercase text-white">SHIT TEST ARENA</div>
+        <div class="flex items-center gap-2 font-mono text-xs">
+          <span class="text-white font-bold bg-arena-card px-2 py-0.5 rounded border border-arena-cardborder">RONDA 3 / 10</span>
+          <span class="text-emerald-400 font-bold">✓ GUARDADO</span>
+        </div>
+      </header>
+
+      <!-- PREGUNTA + CRONÓMETRO -->
+      <div class="bg-arena-card border border-arena-cardborder rounded-2xl p-4 shadow-card text-center">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[9px] font-mono font-bold text-arena-pink uppercase">PROVOCACIÓN</span>
+          <span class="text-[9px] font-mono text-arena-muted">SHIT TEST #03</span>
+        </div>
+        <h3 class="text-xl font-black text-white mb-2">
+          “Seguro eres así con todas.”
+        </h3>
+
+        <!-- CRONÓMETRO EN 05s -->
+        <div class="flex items-center justify-center gap-2 my-1">
+          <span class="text-5xl font-mono font-black text-arena-orange tracking-tight">05</span>
+          <span class="text-xs font-mono font-bold text-arena-muted">SEG</span>
+        </div>
+        <div class="w-full bg-arena-dark h-1.5 rounded-full overflow-hidden mt-1 border border-arena-cardborder">
+          <div class="bg-arena-orange h-full rounded-full w-[50%]"></div>
+        </div>
+      </div>
+
+      <!-- TU RESPUESTA GUARDADA (CON BORDE VERDE) -->
+      <div class="bg-arena-card border-2 border-emerald-500/50 rounded-2xl p-4 shadow-card flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5 text-xs font-mono font-bold text-emerald-400">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span>✓ RESPUESTA GUARDADA</span>
+          </div>
+          <span class="text-[10px] font-mono text-gray-400">Modificable antes de 0s</span>
+        </div>
+
+        <div class="bg-arena-dark/90 p-3 rounded-xl border border-arena-cardborder text-sm text-gray-100 font-medium italic">
+          “Si querías decirme guapo, solo dilo.”
+        </div>
+
+        <div class="flex items-center justify-between pt-1">
+          <button onclick="switchScreen('ui-7')" class="text-xs font-mono text-gray-300 hover:text-white bg-arena-cardborder/50 hover:bg-arena-cardborder px-3 py-1.5 rounded-lg border border-arena-cardborder transition flex items-center gap-1">
+            <span>✏️ EDITAR RESPUESTA</span>
+          </button>
+          <span class="text-[10px] font-mono text-arena-muted">2/3 respondieron</span>
+        </div>
+      </div>
+
+      <!-- SECCIÓN ESPERANDO -->
+      <div class="bg-arena-dark/90 p-3 rounded-xl border border-arena-cardborder flex flex-col gap-2 text-center">
+        <div class="text-[10px] font-mono text-gray-400 uppercase font-bold">GLADIADORES:</div>
+        <div class="flex items-center justify-center gap-4 text-xs font-mono">
+          <span class="text-emerald-400 font-bold">Jeanpiere ✓</span>
+          <span class="text-emerald-400 font-bold">Juanito ✓</span>
+          <span class="text-arena-orange font-bold animate-pulse">Pedro ...</span>
+        </div>
+        <div class="text-xs text-gray-400 font-mono mt-1 flex items-center justify-center gap-1">
+          <span>⏳ ESPERANDO AL RESTO...</span>
+        </div>
+      </div>
+
+      <!-- ATALLO TRANSICIÓN -->
+      <button onclick="switchScreen('ui-9')" class="w-full bg-arena-cardborder hover:bg-gray-700 text-gray-300 py-2 rounded-xl text-xs font-mono transition text-center">
+        (Simular que el cronómetro llega a 00s →)
+      </button>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- UI 9: TIEMPO TERMINADO / TRANSICIÓN -->
+    <!-- ========================================== -->
+    <div id="screen-ui-9" class="screen-container flex flex-col justify-between flex-1 gap-4 hidden">
+      <!-- HEADER MINIMAL -->
+      <header class="flex items-center justify-between py-2 border-b border-arena-cardborder/60 font-mono text-xs">
+        <span class="text-white font-bold">SHIT TEST ARENA</span>
+        <span class="text-red-400 font-bold">RONDA 3 / 10</span>
+      </header>
+
+      <!-- CENTRO: TIEMPO EN ROJO -->
+      <div class="my-auto flex flex-col items-center justify-center text-center py-8">
+        <div class="w-28 h-28 rounded-full bg-red-950/40 border-2 border-red-500 flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.4)] mb-4">
+          <span class="text-5xl font-mono font-black text-red-400">00</span>
+        </div>
+
+        <h2 class="text-3xl font-black text-white uppercase tracking-tight">¡TIEMPO!</h2>
+        <p class="text-xs font-mono text-red-300 mt-1">Respuestas bloqueadas definitivamente.</p>
+
+        <div class="bg-arena-card border border-arena-cardborder rounded-xl px-4 py-2 mt-6 text-xs font-mono text-gray-300 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span>3/3 RESPUESTAS RECIBIDAS</span>
+        </div>
+
+        <div class="mt-6 flex flex-col items-center gap-2">
+          <div class="inline-flex items-center gap-2 text-arena-pink font-mono font-bold text-sm tracking-wider">
+            <span class="animate-spin text-base">⚙</span>
+            <span>REVELANDO RESPUESTAS...</span>
+          </div>
+          <span class="text-[10px] font-mono text-gray-500">Sincronizando tarjetas para todos los jugadores</span>
+        </div>
+      </div>
+
+      <!-- BOTÓN PARA PASAR A REVELACIÓN -->
+      <button onclick="switchScreen('ui-10')" class="w-full gradient-btn text-white py-3 rounded-xl font-mono font-black text-sm tracking-wider uppercase shadow-glow-pink">
+        VER REVELACIÓN INMEDIATA →
+      </button>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- UI 10: REVELACIÓN DE RESPUESTAS -->
+    <!-- ========================================== -->
+    <div id="screen-ui-10" class="screen-container flex flex-col justify-between flex-1 gap-3 hidden">
+      <!-- HEADER -->
+      <header class="flex items-center justify-between py-2 border-b border-arena-cardborder/60">
+        <div class="font-black text-xs tracking-wider uppercase text-white">SHIT TEST ARENA</div>
+        <div class="flex items-center gap-2 font-mono text-xs">
+          <span class="text-white font-bold bg-arena-card px-2 py-0.5 rounded border border-arena-cardborder">RONDA 3 / 10</span>
+          <span class="text-arena-pink font-bold bg-arena-pink/15 px-2 py-0.5 rounded border border-arena-pink/30">REVELACIÓN</span>
+        </div>
+      </header>
+
+      <!-- PREGUNTA DE REFERENCIA -->
+      <div class="bg-arena-card/80 border border-arena-cardborder rounded-xl p-2.5 text-center">
+        <div class="text-[9px] font-mono text-gray-400 uppercase">SHIT TEST COMPARADO:</div>
+        <div class="text-sm font-black text-white mt-0.5">“Seguro eres así con todas.”</div>
+      </div>
+
+      <!-- TÍTULO SECCIÓN -->
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-mono font-bold text-gray-300 uppercase">LO QUE PUSO CADA UNO</span>
+        <span class="text-[10px] font-mono text-arena-gold">SIN FILTROS NI DISCULPAS</span>
+      </div>
+
+      <!-- TARJETAS DE RESPUESTAS INDIVIDUALES -->
+      <div class="space-y-2.5 flex-1 overflow-y-auto pr-0.5">
+        <!-- CARD 1: JEANPIERE (HOST) -->
+        <div class="bg-arena-card border border-arena-pink/50 rounded-xl p-3 shadow-card flex flex-col gap-1.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded bg-arena-pink/20 text-arena-pink flex items-center justify-center font-black text-xs font-mono">👑</span>
+              <span class="text-xs font-bold text-white">Jeanpiere</span>
+              <span class="text-[8px] bg-arena-pink text-white font-mono px-1 rounded font-bold">HOST</span>
+            </div>
+            <div class="flex items-center gap-1.5 text-sm">
+              <button class="hover:scale-125 transition">🔥</button>
+              <button class="hover:scale-125 transition">😂</button>
+              <button class="hover:scale-125 transition">🧠</button>
+            </div>
+          </div>
+          <div class="text-[10px] font-mono text-gray-400">PUSO:</div>
+          <div class="bg-arena-dark p-2.5 rounded-lg border border-arena-cardborder text-sm text-gray-100 font-medium italic">
+            “Si querías decirme guapo, solo dilo.”
+          </div>
+        </div>
+
+        <!-- CARD 2: JUANITO -->
+        <div class="bg-arena-card border border-arena-orange/50 rounded-xl p-3 shadow-card flex flex-col gap-1.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded bg-arena-orange/20 text-arena-orange flex items-center justify-center font-black text-xs font-mono">⚡</span>
+              <span class="text-xs font-bold text-white">Juanito</span>
+            </div>
+            <div class="flex items-center gap-1.5 text-sm">
+              <button class="hover:scale-125 transition">🔥</button>
+              <button class="hover:scale-125 transition">😂</button>
+              <button class="hover:scale-125 transition">🧠</button>
+            </div>
+          </div>
+          <div class="text-[10px] font-mono text-gray-400">PUSO:</div>
+          <div class="bg-arena-dark p-2.5 rounded-lg border border-arena-cardborder text-sm text-gray-100 font-medium italic">
+            “Espero no te enamores.”
+          </div>
+        </div>
+
+        <!-- CARD 3: PEDRO -->
+        <div class="bg-arena-card border border-arena-cardborder rounded-xl p-3 shadow-card flex flex-col gap-1.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded bg-gray-800 text-gray-300 flex items-center justify-center font-black text-xs font-mono">🎯</span>
+              <span class="text-xs font-bold text-white">Pedro</span>
+            </div>
+            <div class="flex items-center gap-1.5 text-sm">
+              <button class="hover:scale-125 transition">🔥</button>
+              <button class="hover:scale-125 transition">😂</button>
+              <button class="hover:scale-125 transition">🧠</button>
+            </div>
+          </div>
+          <div class="text-[10px] font-mono text-gray-400">PUSO:</div>
+          <div class="bg-arena-dark p-2.5 rounded-lg border border-arena-cardborder text-sm text-gray-100 font-medium italic">
+            “Solo los fines de semana.”
+          </div>
+        </div>
+      </div>
+
+      <!-- ACCIÓN SEGÚN ROL -->
+      <div class="pt-1">
+        <!-- VISTA PARA HOST -->
+        <div class="space-y-1">
+          <button onclick="switchScreen('ui-11')" class="w-full gradient-btn text-white py-3.5 px-4 rounded-xl font-black text-sm tracking-wider uppercase shadow-glow-pink flex items-center justify-center gap-2">
+            <span>⚡ SIGUIENTE SHIT TEST</span>
+            <span class="text-xs font-mono font-normal">(RONDA 4 / 10)</span>
+          </button>
+          <div class="text-center">
+            <span class="text-[10px] font-mono text-gray-500">Para invitados muestra: "Esperando al host..."</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- UI 11: HISTORIAL FINAL / RESULTADOS -->
+    <!-- ========================================== -->
+    <div id="screen-ui-11" class="screen-container flex flex-col justify-between flex-1 gap-3 hidden">
+      <!-- HEADER -->
+      <header class="flex items-center justify-between py-2 border-b border-arena-cardborder/60">
+        <div class="font-black text-xs tracking-wider uppercase text-white">SHIT TEST ARENA</div>
+        <div class="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
+          MATCH COMPLETE
+        </div>
+      </header>
+
+      <!-- RESUMEN MATCH -->
+      <div class="bg-arena-card border border-arena-cardborder rounded-2xl p-3 text-center">
+        <span class="text-[9px] font-mono font-bold text-arena-pink bg-arena-pink/15 px-2 py-0.5 rounded border border-arena-pink/30 uppercase">10/10 COMPLETADO</span>
+        <h2 class="text-xl font-black text-white tracking-tight mt-1">COMBATE TERMINADO</h2>
+        <div class="flex items-center justify-center gap-3 text-xs font-mono text-gray-400 mt-1">
+          <span>10 shit tests</span>
+          <span>•</span>
+          <span>3 gladiadores</span>
+          <span>•</span>
+          <span>10s por ronda</span>
+        </div>
+      </div>
+
+      <!-- TABS: POR RONDA / POR JUGADOR -->
+      <div class="grid grid-cols-2 gap-1 bg-arena-card p-1 rounded-xl border border-arena-cardborder text-xs font-mono">
+        <button id="tab-round" onclick="setHistTab('round')" class="py-1.5 rounded-lg bg-gradient-to-r from-arena-pink to-arena-orange text-white font-bold">POR RONDA</button>
+        <button id="tab-player" onclick="setHistTab('player')" class="py-1.5 rounded-lg text-gray-400 hover:text-white">POR JUGADOR</button>
+      </div>
+
+      <!-- CONTENIDO HISTORIAL -->
+      <div class="flex-1 overflow-y-auto space-y-2 pr-0.5 text-xs max-h-72">
+        <!-- VISTA POR RONDA -->
+        <div id="hist-by-round" class="space-y-2">
+          <!-- RONDA 1 -->
+          <div class="bg-arena-dark/90 p-3 rounded-xl border border-arena-cardborder">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[10px] font-mono font-bold text-arena-pink">RONDA 1</span>
+              <span class="text-[9px] font-mono text-gray-500">Provocación</span>
+            </div>
+            <div class="font-bold text-gray-200 mb-2">“Seguro eres así con todas.”</div>
+            <div class="space-y-1 font-mono text-[11px] text-gray-300">
+              <div><span class="text-arena-pink font-bold">Jeanpiere:</span> “Si querías decirme guapo, solo dilo.”</div>
+              <div><span class="text-arena-orange font-bold">Juanito:</span> “Espero no te enamores.”</div>
+              <div><span class="text-gray-400 font-bold">Pedro:</span> “Solo los fines de semana.”</div>
+            </div>
+          </div>
+
+          <!-- RONDA 2 -->
+          <div class="bg-arena-dark/90 p-3 rounded-xl border border-arena-cardborder">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[10px] font-mono font-bold text-arena-pink">RONDA 2</span>
+              <span class="text-[9px] font-mono text-gray-500">Presión Social</span>
+            </div>
+            <div class="font-bold text-gray-200 mb-2">“Tienes cara de que te crees demasiado.”</div>
+            <div class="space-y-1 font-mono text-[11px] text-gray-300">
+              <div><span class="text-arena-pink font-bold">Jeanpiere:</span> “No me creo, solo me caigo bien.”</div>
+              <div><span class="text-arena-orange font-bold">Juanito:</span> “Es mi cara de concentración.”</div>
+              <div><span class="text-gray-400 font-bold">Pedro:</span> “Culpa de mis genes.”</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- VISTA POR JUGADOR (HIDDEN BY DEFAULT) -->
+        <div id="hist-by-player" class="space-y-2 hidden">
+          <div class="bg-arena-dark/90 p-3 rounded-xl border border-arena-pink/40">
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-bold text-white font-mono">👑 JEANPIERE</span>
+              <span class="text-[9px] font-mono text-arena-pink">10 RESPUESTAS</span>
+            </div>
+            <div class="text-[10px] font-mono text-gray-400 space-y-1">
+              <div>01 — “Si querías decirme guapo, solo dilo.”</div>
+              <div>02 — “No me creo, solo me caigo bien.”</div>
+              <div>03 — “¿Eso es un insulto o una invitación?”</div>
+            </div>
+          </div>
+
+          <div class="bg-arena-dark/90 p-3 rounded-xl border border-arena-orange/40">
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-bold text-white font-mono">⚡ JUANITO</span>
+              <span class="text-[9px] font-mono text-arena-orange">10 RESPUESTAS</span>
+            </div>
+            <div class="text-[10px] font-mono text-gray-400 space-y-1">
+              <div>01 — “Espero no te enamores.”</div>
+              <div>02 — “Es mi cara de concentración.”</div>
+              <div>03 — “Depende de quién pregunte.”</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTONES FINALES -->
+      <div class="space-y-2 pt-1">
+        <button onclick="switchScreen('ui-4')" class="w-full gradient-btn text-white py-3 px-4 rounded-xl font-black text-sm tracking-wider uppercase shadow-glow-pink">
+          ⚡ JUGAR OTRA VEZ (MISMA SALA)
+        </button>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="switchScreen('ui-2')" class="bg-arena-card border border-arena-cardborder hover:bg-arena-cardborder text-gray-200 py-2.5 rounded-xl font-bold text-xs font-mono transition">
+            CREAR NUEVA SALA
+          </button>
+          <button onclick="alert('Historial de combate copiado al portapapeles')" class="bg-arena-card border border-arena-cardborder hover:bg-arena-cardborder text-gray-200 py-2.5 rounded-xl font-bold text-xs font-mono transition">
+            📋 COPIAR HISTORIAL
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- UI 12: MODAL / BOTTOM SHEET CONFIGURACIÓN DEL HOST -->
+    <!-- ========================================== -->
+    <div id="screen-ui-12" class="screen-container flex flex-col justify-end flex-1 gap-3 hidden">
+      <!-- MODAL / BOTTOM SHEET CONTAINER -->
+      <div class="bg-arena-card border border-arena-cardborder rounded-2xl p-5 shadow-2xl flex flex-col gap-4">
+        <div class="flex items-center justify-between border-b border-arena-cardborder pb-2">
+          <div>
+            <span class="text-[10px] font-mono text-arena-pink font-bold uppercase">HOST RING SETTINGS</span>
+            <h3 class="text-base font-black text-white">CONFIGURACIÓN DEL RING</h3>
+          </div>
+          <button onclick="switchScreen('ui-4')" class="w-7 h-7 rounded-lg bg-arena-dark text-gray-400 hover:text-white flex items-center justify-center font-mono text-sm border border-arena-cardborder">✕</button>
+        </div>
+
+        <!-- TIEMPO -->
+        <div>
+          <label class="block text-[10px] font-mono uppercase tracking-wider text-gray-300 font-bold mb-1.5">TIEMPO POR RESPUESTA</label>
+          <div class="grid grid-cols-6 gap-1 bg-arena-dark p-1 rounded-xl border border-arena-cardborder text-center text-xs font-mono">
+            <button class="py-1 rounded text-gray-400">5s</button>
+            <button class="py-1 rounded bg-arena-pink text-white font-bold">10s</button>
+            <button class="py-1 rounded text-gray-400">15s</button>
+            <button class="py-1 rounded text-gray-400">20s</button>
+            <button class="py-1 rounded text-gray-400">30s</button>
+            <button class="py-1 rounded text-gray-400 text-[10px]">CUST</button>
+          </div>
+        </div>
+
+        <!-- RONDAS -->
+        <div>
+          <label class="block text-[10px] font-mono uppercase tracking-wider text-gray-300 font-bold mb-1.5">RONDAS</label>
+          <div class="grid grid-cols-4 gap-1 bg-arena-dark p-1 rounded-xl border border-arena-cardborder text-center text-xs font-mono">
+            <button class="py-1 rounded text-gray-400">5</button>
+            <button class="py-1 rounded bg-arena-orange text-white font-bold">10</button>
+            <button class="py-1 rounded text-gray-400">15</button>
+            <button class="py-1 rounded text-gray-400">20</button>
+          </div>
+        </div>
+
+        <!-- CATEGORÍA -->
+        <div>
+          <label class="block text-[10px] font-mono uppercase tracking-wider text-gray-300 font-bold mb-1.5">CATEGORÍA</label>
+          <select class="w-full bg-arena-dark border border-arena-cardborder rounded-xl px-3 py-2 text-xs text-gray-200 font-medium">
+            <option>Provocaciones callejeras (Recomendada)</option>
+            <option>Todas las categorías</option>
+            <option>Bromas</option>
+            <option>Presión social</option>
+            <option>Conversación</option>
+          </select>
+        </div>
+
+        <!-- RESUMEN -->
+        <div class="bg-arena-dark/70 p-2.5 rounded-xl border border-arena-cardborder text-[11px] font-mono flex items-center justify-between text-gray-300">
+          <span>10 RONDAS</span>
+          <span>•</span>
+          <span>10 SEGUNDOS</span>
+          <span>•</span>
+          <span class="text-arena-pink font-bold">PROVOCACIONES</span>
+        </div>
+
+        <!-- BOTONES -->
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="switchScreen('ui-4')" class="gradient-btn text-white py-2.5 rounded-xl font-mono font-bold text-xs">GUARDAR CAMBIOS</button>
+          <button onclick="switchScreen('ui-4')" class="bg-arena-dark border border-arena-cardborder text-gray-300 py-2.5 rounded-xl font-mono text-xs">CANCELAR</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- UI 13: ESTADOS DE CONEXIÓN Y RECONEXIÓN -->
+    <!-- ========================================== -->
+    <div id="screen-ui-13" class="screen-container flex flex-col justify-between flex-1 gap-3 hidden">
+      <header class="flex items-center justify-between py-2 border-b border-arena-cardborder/60">
+        <div class="font-black text-xs tracking-wider uppercase text-white">ESTADOS DE CONEXIÓN (UI 13)</div>
+        <button onclick="switchScreen('ui-7')" class="text-xs font-mono text-gray-400">← Volver al juego</button>
+      </header>
+
+      <div class="space-y-3 my-auto">
+        <!-- 1. CONNECTED -->
+        <div class="bg-arena-card border border-arena-cardborder p-3.5 rounded-xl flex items-center justify-between">
+          <div>
+            <div class="text-[10px] font-mono text-gray-500 uppercase">ESTADO 1: ONLINE</div>
+            <div class="text-xs font-bold text-gray-200">Partida sincronizada</div>
+          </div>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            ● CONNECTED
+          </span>
+        </div>
+
+        <!-- 2. CONNECTING -->
+        <div class="bg-arena-card border border-arena-cardborder p-3.5 rounded-xl flex items-center justify-between">
+          <div>
+            <div class="text-[10px] font-mono text-gray-500 uppercase">ESTADO 2: CONECTANDO</div>
+            <div class="text-xs font-bold text-gray-200">Entrando al canal WebSocket</div>
+          </div>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-400 text-xs font-mono font-bold">
+            <span class="w-2 h-2 rounded-full border-2 border-sky-400 border-t-transparent animate-spin"></span>
+            CONNECTING...
+          </span>
+        </div>
+
+        <!-- 3. RECONNECTING -->
+        <div class="bg-arena-card border border-amber-500/40 p-3.5 rounded-xl flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-[10px] font-mono text-amber-500 uppercase font-bold">ESTADO 3: RECONECTANDO</div>
+              <div class="text-xs font-bold text-amber-200">Pérdida temporal de señal</div>
+            </div>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-mono font-bold">
+              <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+              RECONNECTING...
+            </span>
+          </div>
+          <p class="text-[11px] font-mono text-gray-300">Recuperando estado de la sala... (No reinicia el cronómetro).</p>
+          <button onclick="toggleReconnectBanner()" class="text-xs font-mono text-amber-400 bg-amber-950/40 py-1 rounded border border-amber-500/30 text-center">
+            Alternar banner de alerta superior en vivo
+          </button>
+        </div>
+
+        <!-- 4. CONNECTION LOST -->
+        <div class="bg-arena-card border border-red-500/40 p-3.5 rounded-xl flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-[10px] font-mono text-red-500 uppercase font-bold">ESTADO 4: CONEXIÓN PERDIDA</div>
+              <div class="text-xs font-bold text-red-200">No pudimos conectar con la arena</div>
+            </div>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/15 border border-red-500/40 text-red-400 text-xs font-mono font-bold">
+              ● LOST
+            </span>
+          </div>
+          <button class="gradient-btn text-white py-2 rounded-lg font-mono text-xs font-bold uppercase">
+            REINTENTAR CONEXIÓN
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- UI 14: SALA INVÁLIDA / EXPIRADA (404) -->
+    <!-- ========================================== -->
+    <div id="screen-ui-14" class="screen-container flex flex-col justify-between flex-1 gap-4 hidden">
+      <header class="flex items-center justify-between py-2 border-b border-arena-cardborder/60">
+        <button onclick="switchScreen('ui-1')" class="text-xs font-mono text-gray-400 hover:text-white">← INICIO</button>
+        <div class="font-black text-xs tracking-wider uppercase text-white">SHIT TEST ARENA</div>
+        <span class="text-[10px] font-mono text-red-400">ERROR 404</span>
+      </header>
+
+      <div class="my-auto flex flex-col items-center justify-center text-center py-6">
+        <div class="w-20 h-20 rounded-2xl bg-red-950/30 border border-red-500/40 flex items-center justify-center text-3xl mb-4 shadow-sm">
+          🔒
+        </div>
+        <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-red-500/10 border border-red-500/30 text-red-400 text-[10px] font-mono font-bold mb-2">
+          ERROR 404 · SALA NO DISPONIBLE
+        </div>
+        <h2 class="text-2xl font-black text-white uppercase tracking-tight">ESTA SALA YA NO EXISTE</h2>
+        <p class="text-xs text-gray-400 max-w-xs mt-2 leading-relaxed">
+          El código puede ser incorrecto o la partida ya terminó y expiró por inactividad.
+        </p>
+
+        <div class="bg-arena-card border border-arena-cardborder rounded-xl px-4 py-2 mt-4 text-xs font-mono text-gray-300">
+          CÓDIGO INTENTADO: <span class="text-arena-gold font-bold">K7P4Q</span>
+        </div>
+
+        <div class="w-full space-y-2 mt-8">
+          <button onclick="switchScreen('ui-3')" class="w-full gradient-btn text-white py-3 px-4 rounded-xl font-black text-xs tracking-wider uppercase shadow-glow-pink">
+            BUSCAR OTRA SALA
+          </button>
+          <button onclick="switchScreen('ui-2')" class="w-full bg-arena-card hover:bg-arena-cardborder text-gray-200 border border-arena-cardborder py-3 px-4 rounded-xl font-bold text-xs font-mono transition">
+            CREAR UNA NUEVA SALA
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER DE REGLAS Y BRANDING MAESTRO -->
+    <footer class="mt-4 pt-3 border-t border-arena-cardborder/40 text-center font-mono text-[10px] text-arena-muted flex items-center justify-between">
+      <div class="flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-arena-pink"></span>
+        <span>TYLER DURDEN X IBAN BARCA</span>
+      </div>
+      <div>100% MARCO · 0% DRAMA</div>
+    </footer>
+
+  </main>
+
+  <!-- JAVASCRIPT NATIVO PARA INTERACCIÓN DEL FLUJO Y NAVEGACIÓN -->
+  <script>
+    function switchScreen(screenId) {
+      document.querySelectorAll('.screen-container').forEach(el => {
+        el.classList.add('hidden');
+      });
+      const activeEl = document.getElementById('screen-' + screenId);
+      if (activeEl) {
+        activeEl.classList.remove('hidden');
+      }
+
+      // Actualizar estilo en pestañas
+      document.querySelectorAll('.screen-tab').forEach(btn => {
+        btn.classList.remove('bg-arena-pink', 'text-white', 'font-bold');
+        btn.classList.add('bg-arena-card', 'text-gray-400');
+      });
+      const currentTab = document.getElementById('btn-' + screenId);
+      if (currentTab) {
+        currentTab.classList.remove('bg-arena-card', 'text-gray-400');
+        currentTab.classList.add('bg-arena-pink', 'text-white', 'font-bold');
+      }
+
+      // Efecto en countdown si es UI 6
+      if (screenId === 'ui-6') {
+        startSimulatedCountdown();
+      }
+    }
+
+    function updateCharCount(textarea) {
+      const count = textarea.value.length;
+      document.getElementById('char-count').innerText = `${count} / 300`;
+    }
+
+    function submitAnswer() {
+      switchScreen('ui-8');
+    }
+
+    function toggleJoinError() {
+      const validBox = document.getElementById('join-status-valid');
+      const errBox = document.getElementById('join-status-error');
+      if (validBox.classList.contains('hidden')) {
+        validBox.classList.remove('hidden');
+        errBox.classList.add('hidden');
+      } else {
+        validBox.classList.add('hidden');
+        errBox.classList.remove('hidden');
+        errBox.classList.add('flex');
+      }
+    }
+
+    function toggleReconnectBanner() {
+      const banner = document.getElementById('reconnect-banner');
+      banner.classList.toggle('hidden');
+    }
+
+    function setHistTab(tab) {
+      const roundView = document.getElementById('hist-by-round');
+      const playerView = document.getElementById('hist-by-player');
+      const btnRound = document.getElementById('tab-round');
+      const btnPlayer = document.getElementById('tab-player');
+
+      if (tab === 'round') {
+        roundView.classList.remove('hidden');
+        playerView.classList.add('hidden');
+        btnRound.className = "py-1.5 rounded-lg bg-gradient-to-r from-arena-pink to-arena-orange text-white font-bold";
+        btnPlayer.className = "py-1.5 rounded-lg text-gray-400 hover:text-white";
+      } else {
+        roundView.classList.add('hidden');
+        playerView.classList.remove('hidden');
+        btnPlayer.className = "py-1.5 rounded-lg bg-gradient-to-r from-arena-pink to-arena-orange text-white font-bold";
+        btnRound.className = "py-1.5 rounded-lg text-gray-400 hover:text-white";
+      }
+    }
+
+    let countdownInterval;
+    function startSimulatedCountdown() {
+      let val = 3;
+      const display = document.getElementById('countdown-display');
+      if (!display) return;
+      display.innerText = val;
+      clearInterval(countdownInterval);
+      countdownInterval = setInterval(() => {
+        val--;
+        if (val > 0) {
+          display.innerText = val;
+        } else if (val === 0) {
+          display.innerText = "¡FIGHT!";
+        } else {
+          clearInterval(countdownInterval);
+          switchScreen('ui-7');
+        }
+      }, 1000);
+    }
+  </script>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

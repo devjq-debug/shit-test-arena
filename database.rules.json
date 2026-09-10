@@ -1,0 +1,36 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "roomCodes": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && !data.exists() && newData.isString()",
+        ".validate": "newData.val().matches(/^[A-Z2-9]{5}$/)"
+      }
+    },
+    "rooms": {
+      "$roomId": {
+        ".read": "auth != null && (data.child('hostUid').val() == auth.uid || data.child('players').child(auth.uid).exists())",
+        ".write": "auth != null && ((!data.exists() && newData.child('hostUid').val() == auth.uid) || data.child('hostUid').val() == auth.uid)",
+        ".validate": "newData.hasChildren(['hostUid', 'code', 'status', 'players']) && newData.child('hostUid').isString() && newData.child('code').isString() && newData.child('code').val().matches(/^[A-Z2-9]{5}$/) && (newData.child('status').val() == 'LOBBY' || newData.child('status').val() == 'COUNTDOWN' || newData.child('status').val() == 'QUESTION' || newData.child('status').val() == 'QUESTION_RESULTS' || newData.child('status').val() == 'LEADERBOARD' || newData.child('status').val() == 'FINISHED') && (!data.exists() || newData.child('hostUid').val() == data.child('hostUid').val())",
+        "players": {
+          "$uid": {
+            ".read": "auth != null && root.child('rooms').child($roomId).child('players').child(auth.uid).exists()",
+            ".write": "auth != null && (auth.uid == $uid || root.child('rooms').child($roomId).child('hostUid').val() == auth.uid)",
+            ".validate": "newData.hasChildren(['nickname', 'score', 'connected', 'joinedAt', 'isHost']) && newData.child('nickname').isString() && newData.child('nickname').val().length <= 20 && newData.child('score').isNumber() && (data.exists() ? newData.child('score').val() == data.child('score').val() : newData.child('score').val() == 0) && newData.child('isHost').val() == ($uid == root.child('rooms').child($roomId).child('hostUid').val())"
+          }
+        },
+        "answers": {
+          "$questionId": {
+            "$uid": {
+              ".read": "auth != null && root.child('rooms').child($roomId).child('players').child(auth.uid).exists() && (auth.uid == $uid || root.child('rooms').child($roomId).child('status').val() == 'QUESTION_RESULTS' || root.child('rooms').child($roomId).child('status').val() == 'LEADERBOARD')",
+              ".write": "auth != null && auth.uid == $uid && root.child('rooms').child($roomId).child('players').child(auth.uid).exists() && root.child('rooms').child($roomId).child('status').val() == 'QUESTION'",
+              ".validate": "newData.hasChildren(['answer', 'answeredAt']) && newData.child('answer').isString() && newData.child('answer').val().length <= 300"
+            }
+          }
+        }
+      }
+    }
+  }
+}
