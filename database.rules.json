@@ -32,7 +32,10 @@
           },
           "scoredQuestions": {
             ".write": "auth != null && root.child('rooms').child($roomId).child('hostUid').val() == auth.uid && data.parent().exists()",
-            ".validate": "!newData.exists() || newData.isNumber()"
+            ".validate": "!newData.exists() || newData.hasChildren()",
+            "$questionId": {
+              ".validate": "$questionId.matches(/^[0-9]+$/) && newData.val() == true"
+            }
           }
         }
       }

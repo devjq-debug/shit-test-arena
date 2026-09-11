@@ -35,6 +35,8 @@ export const DEFAULT_QUESTIONS = [
   'No puedes responder con otra pregunta.'
 ];
 
+const DEFAULT_RECOMMENDED_ANSWER = 'Responde con calma, humor breve y marco propio. Evita justificarte, atacar o perseguir aprobación.';
+
 const normalizeCategory = (snapshot) => ({ id: snapshot.id, ...snapshot.data() });
 const normalizeQuestion = (snapshot) => ({ id: snapshot.id, ...snapshot.data() });
 const uniqueById = (items) => [...new Map(items.map((item) => [item.id, item])).values()];
@@ -47,7 +49,10 @@ export function formatRoomQuestion(question) {
   return {
     id: question.id,
     text: question.text,
-    categoryId: question.categoryId || 'fallback'
+    categoryId: question.categoryId || 'fallback',
+    recommendedAnswer: question.recommendedAnswer || DEFAULT_RECOMMENDED_ANSWER,
+    technique: question.technique || '',
+    source: question.source || ''
   };
 }
 
@@ -56,7 +61,10 @@ function fallbackQuestionBank() {
     id: `fallback-${index + 1}`,
     text,
     categoryId: 'fallback',
-    active: true
+    active: true,
+    recommendedAnswer: DEFAULT_RECOMMENDED_ANSWER,
+    technique: 'calibración / marco propio',
+    source: 'banco base'
   }));
 }
 
@@ -130,20 +138,26 @@ export async function deleteCategory(categoryId) {
   return deleteDoc(doc(firestore, 'categories', categoryId));
 }
 
-export async function createQuestion({ text, categoryId, active = true }) {
+export async function createQuestion({ text, categoryId, active = true, recommendedAnswer = '', technique = '', source = '' }) {
   return addDoc(collection(firestore, 'questions'), {
     text: text.trim(),
     categoryId,
+    recommendedAnswer: recommendedAnswer.trim(),
+    technique: technique.trim(),
+    source: source.trim(),
     active,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
 }
 
-export async function updateQuestion(questionId, { text, categoryId, active }) {
+export async function updateQuestion(questionId, { text, categoryId, active, recommendedAnswer = '', technique = '', source = '' }) {
   return updateDoc(doc(firestore, 'questions', questionId), {
     text: text.trim(),
     categoryId,
+    recommendedAnswer: recommendedAnswer.trim(),
+    technique: technique.trim(),
+    source: source.trim(),
     active,
     updatedAt: serverTimestamp()
   });
@@ -170,6 +184,6 @@ export async function seedDefaultQuestions() {
   const existingQuestions = await listQuestionsForAdmin();
   const existingTexts = new Set(existingQuestions.map((question) => String(question.text || '').trim().toLowerCase()));
   const missing = DEFAULT_QUESTIONS.filter((text) => !existingTexts.has(text.trim().toLowerCase()));
-  await Promise.all(missing.map((text) => createQuestion({ text, categoryId: general.id, active: true })));
+  await Promise.all(missing.map((text) => createQuestion({ text, categoryId: general.id, active: true, recommendedAnswer: DEFAULT_RECOMMENDED_ANSWER, technique: 'calibración / marco propio', source: 'banco base' })));
   return { category: general, created: missing.length };
 }

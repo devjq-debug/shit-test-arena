@@ -11,7 +11,7 @@ import {
   setQuestionActive,
   updateCategory,
   updateQuestion
-} from './question-service.js?v=3';
+} from './question-service.js?v=4';
 
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value = '') => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
@@ -60,6 +60,9 @@ function resetCategoryForm() {
 function resetQuestionForm() {
   $('#question-id').value = '';
   $('#question-text').value = '';
+  $('#question-recommended-answer').value = '';
+  $('#question-technique').value = '';
+  $('#question-source').value = '';
   $('#question-active').checked = true;
   if ($('#question-category').options.length) $('#question-category').selectedIndex = 0;
 }
@@ -99,7 +102,8 @@ function renderQuestions() {
   const search = $('#question-search').value.trim().toLowerCase();
   const filterCategory = $('#question-filter-category').value;
   const filtered = state.questions.filter((question) => {
-    const matchesText = !search || String(question.text || '').toLowerCase().includes(search);
+    const haystack = [question.text, question.recommendedAnswer, question.technique, question.source].join(' ').toLowerCase();
+    const matchesText = !search || haystack.includes(search);
     const matchesCategory = !filterCategory || question.categoryId === filterCategory;
     return matchesText && matchesCategory;
   });
@@ -109,8 +113,10 @@ function renderQuestions() {
       <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div class="text-sm font-bold leading-relaxed text-white">${escapeHtml(question.text)}</div>
+          ${question.recommendedAnswer ? `<div class="mt-2 rounded-xl border border-arena-cardborder bg-arena-card/70 p-3 text-xs leading-relaxed text-gray-300"><span class="font-mono font-black uppercase text-arena-gold">Recomendada:</span> ${escapeHtml(question.recommendedAnswer)}</div>` : ''}
           <div class="mt-2 flex flex-wrap gap-2 font-mono text-[10px]">
             <span class="rounded-lg border border-arena-cardborder px-2 py-1 text-arena-gold">${escapeHtml(categoryName(question.categoryId))}</span>
+            ${question.technique ? `<span class="rounded-lg border border-arena-cardborder px-2 py-1 text-gray-300">${escapeHtml(question.technique)}</span>` : ''}
             <span class="${question.active ? 'text-emerald-400' : 'text-gray-500'} rounded-lg border border-arena-cardborder px-2 py-1">${question.active ? 'ACTIVA' : 'INACTIVA'}</span>
           </div>
         </div>
@@ -161,7 +167,14 @@ async function handleCategorySubmit(event) {
 async function handleQuestionSubmit(event) {
   event.preventDefault();
   const id = $('#question-id').value;
-  const payload = { text: $('#question-text').value, categoryId: $('#question-category').value, active: $('#question-active').checked };
+  const payload = {
+    text: $('#question-text').value,
+    recommendedAnswer: $('#question-recommended-answer').value,
+    technique: $('#question-technique').value,
+    source: $('#question-source').value,
+    categoryId: $('#question-category').value,
+    active: $('#question-active').checked
+  };
   if (!payload.text.trim()) return showToast('Escribe una pregunta.', true);
   if (!payload.categoryId) return showToast('Crea o selecciona una categoría.', true);
   if (id) await updateQuestion(id, payload);
@@ -206,6 +219,9 @@ function bindDelegatedActions() {
         const question = state.questions.find((item) => item.id === editQuestionId);
         $('#question-id').value = question.id;
         $('#question-text').value = question.text;
+        $('#question-recommended-answer').value = question.recommendedAnswer || '';
+        $('#question-technique').value = question.technique || '';
+        $('#question-source').value = question.source || '';
         $('#question-category').value = question.categoryId;
         $('#question-active').checked = question.active;
         window.scrollTo({ top: 0, behavior: 'smooth' });

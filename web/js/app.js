@@ -1,5 +1,6 @@
 import { ensurePlayerUser } from './auth.js?v=4';
-import { fallbackQuestionText, loadGameCategories, pickQuestionsForRoom } from './question-service.js?v=3';
+import { fallbackQuestionText, loadGameCategories, pickQuestionsForRoom } from './question-service.js?v=4';
+import { evaluateAnswer, getCurrentRoomQuestion, recommendedAnswerForRoom } from './response-evaluator.js?v=1';
 import { database, ref, set, update, get, onValue, onDisconnect, push, remove, runTransaction, serverTimestamp } from './game/realtime.js?v=2';
 
 const state = { uid: null, roomId: null, room: null, players: {}, currentAnswers: {}, ownAnswer: '', activeQuestion: null, loadedAnswerQuestion: null, serverOffset: 0, hasConnectedOnce: false, unsubscribers: [], answerUnsubscribe: null, answerQuestion: null, answerStatusUnsubscribe: null, answerStatusQuestion: null, timer: null, closeTimer: null, countdownTimer: null, countdownPaintTimer: null, scoring: false, submittingAnswer: false, settings: { duration: 10, rounds: 10 } };
@@ -13,6 +14,7 @@ const escapeHtml = (value = '') => value.replace(/[&<>"']/g, (char) => ({ '&': '
 const isHost = () => Boolean(state.room && state.uid === state.room.hostUid);
 const formatCategoryLabel = (value = 'Todas las categorías') => value.replace(/\s*\([^)]*\)/g, '').replace('Todas las categorías', 'Todas').toUpperCase();
 const roomQuestionText = (room, number) => room?.questionSet?.[number - 1]?.text || room?.questions?.[number - 1]?.text || fallbackQuestionText(number - 1);
+const roomQuestion = (room, number) => room?.questionSet?.[Math.max(0, Number(number || 1) - 1)] || room?.questions?.[Math.max(0, Number(number || 1) - 1)] || null;
 
 function selectedCategory(selector) {
   const select = $(selector);
@@ -100,6 +102,7 @@ async function clearRoomAnswers(roomId) {
 
 function replaceReferenceText(room) {
   document.querySelectorAll('[data-question-text]').forEach((element) => { element.textContent = `“${room.questionText || fallbackQuestionText(0)}”`; });
+  document.querySelectorAll('[data-recommended-answer]').forEach((element) => { element.textContent = recommendedAnswerForRoom(room); });
   document.querySelectorAll('[data-room-code]').forEach((element) => { element.textContent = room.code; });
   document.querySelectorAll('[data-room-code-label]').forEach((element) => { element.textContent = `SALA: ${room.code}`; });
   document.querySelectorAll('[data-host-name]').forEach((element) => { element.textContent = room.hostName || 'Host'; });
@@ -441,9 +444,11 @@ async function scoreAnswers(question, answers) {
   if (state.scoring) return;
   state.scoring = true;
   try {
+    const activeQuestion = roomQuestion(state.room, question);
     await Promise.all(Object.keys(answers).map((uid) => runTransaction(ref(database, `roomPlayers/${state.roomId}/${uid}`), (player) => {
       if (!player || player.scoredQuestions?.[question]) return undefined;
-      return { ...player, score: Number(player.score || 0) + 100, scoredQuestions: { ...(player.scoredQuestions || {}), [question]: true } };
+      const evaluation = evaluateAnswer(answers[uid]?.answer || '', activeQuestion);
+      return { ...player, score: Number(player.score || 0) + evaluation.score, scoredQuestions: { ...(player.scoredQuestions || {}), [question]: true } };
     })));
     await update(ref(database, `rooms/${state.roomId}`), { scoredQuestion: question });
   } finally {
@@ -454,7 +459,23 @@ async function scoreAnswers(question, answers) {
 function renderAnswers(answers) {
   const list = $('[data-answer-list]');
   if (!list) return;
-  list.innerHTML = Object.entries(answers).map(([uid, item]) => { const player = state.players[uid] || { nickname: 'Jugador' }; return `<div class="self-start bg-arena-card border ${player.isHost ? 'border-arena-pink/50' : 'border-arena-orange/40'} rounded-xl p-3 shadow-card"><div class="flex items-center gap-2 mb-2"><span>${player.isHost ? '👑' : '⚡'}</span><span class="text-xs font-bold text-white break-words">${escapeHtml(player.nickname)}</span></div><div class="text-[10px] font-mono text-gray-400">PUSO:</div><div class="bg-arena-dark p-2.5 rounded-lg border border-arena-cardborder text-sm italic whitespace-pre-wrap break-words">“${escapeHtml(item.answer)}”</div></div>`; }).join('') || '<div class="text-center text-xs text-gray-400">Nadie respondió esta ronda.</div>';
+  const activeQuestion = getCurrentRoomQuestion(state.room);
+  list.innerHTML = Object.entries(answers).map(([uid, item]) => {
+    const player = state.players[uid] || { nickname: 'Jugador' };
+    const evaluation = evaluateAnswer(item.answer, activeQuestion);
+    const scoreColor = evaluation.score >= 82 ? 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10' : evaluation.score >= 65 ? 'text-arena-gold border-arena-gold/40 bg-arena-gold/10' : 'text-arena-orange border-arena-orange/40 bg-arena-orange/10';
+    return `<div class="self-start bg-arena-card border ${player.isHost ? 'border-arena-pink/50' : 'border-arena-orange/40'} rounded-xl p-3 shadow-card">
+      <div class="flex items-center justify-between gap-2 mb-2">
+        <div class="flex min-w-0 items-center gap-2"><span>${player.isHost ? '👑' : '⚡'}</span><span class="text-xs font-bold text-white break-words">${escapeHtml(player.nickname)}</span></div>
+        <span class="shrink-0 rounded-lg border px-2 py-1 text-[10px] font-mono font-black ${scoreColor}">${evaluation.score}%</span>
+      </div>
+      <div class="text-[10px] font-mono text-gray-400">PUSO:</div>
+      <div class="bg-arena-dark p-2.5 rounded-lg border border-arena-cardborder text-sm italic whitespace-pre-wrap break-words">“${escapeHtml(item.answer)}”</div>
+      <div class="mt-2 rounded-lg border border-arena-cardborder bg-arena-dark/70 p-2 text-[11px] leading-relaxed text-gray-300">
+        <span class="font-mono font-black uppercase ${scoreColor.split(' ')[0]}">${evaluation.label}:</span> ${escapeHtml(evaluation.feedback)}
+      </div>
+    </div>`;
+  }).join('') || '<div class="text-center text-xs text-gray-400">Nadie respondió esta ronda.</div>';
 }
 
 async function nextQuestion() {
