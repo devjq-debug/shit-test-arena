@@ -1,4 +1,4 @@
-import { signInAdmin, signOutCurrentUser, watchAuthState } from './auth.js?v=4';
+import { changeCurrentPassword, signInAdmin, signOutCurrentUser, watchAuthState } from './auth.js?v=5';
 import {
   createCategory,
   createQuestion,
@@ -62,6 +62,12 @@ function resetQuestionForm() {
   $('#question-text').value = '';
   $('#question-active').checked = true;
   if ($('#question-category').options.length) $('#question-category').selectedIndex = 0;
+}
+
+function resetPasswordForm() {
+  $('#current-password').value = '';
+  $('#new-password').value = '';
+  $('#confirm-password').value = '';
 }
 
 function renderCategorySelects() {
@@ -165,6 +171,18 @@ async function handleQuestionSubmit(event) {
   showToast('Pregunta guardada.');
 }
 
+async function handlePasswordSubmit(event) {
+  event.preventDefault();
+  const currentPassword = $('#current-password').value;
+  const newPassword = $('#new-password').value;
+  const confirmPassword = $('#confirm-password').value;
+  if (newPassword.length < 8) return showToast('La nueva clave debe tener al menos 8 caracteres.', true);
+  if (newPassword !== confirmPassword) return showToast('La confirmación no coincide.', true);
+  await changeCurrentPassword(currentPassword, newPassword);
+  resetPasswordForm();
+  showToast('Clave actualizada correctamente.');
+}
+
 function bindDelegatedActions() {
   document.addEventListener('click', async (event) => {
     const editCategoryId = event.target.closest('[data-edit-category]')?.dataset.editCategory;
@@ -214,6 +232,7 @@ function bindAdminUi() {
   $('#logout-btn').addEventListener('click', () => signOutCurrentUser());
   $('#category-form').addEventListener('submit', (event) => handleCategorySubmit(event).catch((error) => showToast(error.message, true)));
   $('#question-form').addEventListener('submit', (event) => handleQuestionSubmit(event).catch((error) => showToast(error.message, true)));
+  $('#password-form').addEventListener('submit', (event) => handlePasswordSubmit(event).catch((error) => showToast(error.message, true)));
   $('#category-reset').addEventListener('click', resetCategoryForm);
   $('#question-reset').addEventListener('click', resetQuestionForm);
   $('#question-search').addEventListener('input', renderQuestions);

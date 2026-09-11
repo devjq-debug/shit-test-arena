@@ -1,10 +1,13 @@
 import {
   browserSessionPersistence,
+  EmailAuthProvider,
   onAuthStateChanged,
+  reauthenticateWithCredential,
   setPersistence,
   signInAnonymously,
   signInWithEmailAndPassword,
-  signOut
+  signOut,
+  updatePassword
 } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
 import { auth } from './firebase-config.js?v=2';
 
@@ -29,6 +32,16 @@ export async function signInAdmin(email, password) {
 
 export async function signOutCurrentUser() {
   return signOut(auth);
+}
+
+export async function changeCurrentPassword(currentPassword, newPassword) {
+  await useSessionPersistence();
+  await auth.authStateReady?.();
+  const user = auth.currentUser;
+  if (!user?.email) throw new Error('Vuelve a iniciar sesión antes de cambiar la clave.');
+  const credential = EmailAuthProvider.credential(user.email, currentPassword);
+  await reauthenticateWithCredential(user, credential);
+  await updatePassword(user, newPassword);
 }
 
 export function watchAuthState(callback) {
