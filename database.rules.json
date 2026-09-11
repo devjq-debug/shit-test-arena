@@ -18,23 +18,48 @@
     },
     "roomPlayers": {
       "$roomId": {
-        ".read": "auth != null && (root.child('rooms').child($roomId).child('hostUid').val() == auth.uid || root.child('roomPlayers').child($roomId).child(auth.uid).exists())",
-        ".write": "auth != null && root.child('rooms').child($roomId).child('hostUid').val() == auth.uid && !newData.exists()",
+        ".read": "auth != null && root.child('rooms').child($roomId).exists()",
         "$uid": {
           ".write": "auth != null && (auth.uid == $uid || root.child('rooms').child($roomId).child('hostUid').val() == auth.uid)",
-          ".validate": "newData.hasChildren(['nickname', 'score', 'connected', 'joinedAt', 'isHost']) && newData.child('nickname').isString() && newData.child('nickname').val().length > 0 && newData.child('nickname').val().length <= 20 && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('connected').isBoolean() && newData.child('joinedAt').isNumber() && (data.exists() ? newData.child('joinedAt').val() == data.child('joinedAt').val() : newData.child('joinedAt').val() <= now + 5000) && newData.child('isHost').isBoolean() && newData.child('isHost').val() == ($uid == root.child('rooms').child($roomId).child('hostUid').val()) && (data.exists() ? (newData.child('score').val() == data.child('score').val() || root.child('rooms').child($roomId).child('hostUid').val() == auth.uid) : newData.child('score').val() == 0) && (root.child('rooms').child($roomId).child('hostUid').val() == auth.uid || newData.child('scoredQuestions').val() == data.child('scoredQuestions').val())"
+          ".validate": "newData.hasChildren(['nickname', 'score', 'connected', 'joinedAt', 'isHost']) && newData.child('nickname').isString() && newData.child('nickname').val().length > 0 && newData.child('nickname').val().length <= 20 && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('connected').isBoolean() && newData.child('joinedAt').isNumber() && (data.exists() ? newData.child('joinedAt').val() == data.child('joinedAt').val() : newData.child('joinedAt').val() <= now + 5000) && newData.child('isHost').isBoolean() && newData.child('isHost').val() == ($uid == root.child('rooms').child($roomId).child('hostUid').val()) && (data.exists() ? (newData.child('score').val() == data.child('score').val() || root.child('rooms').child($roomId).child('hostUid').val() == auth.uid) : newData.child('score').val() == 0) && (root.child('rooms').child($roomId).child('hostUid').val() == auth.uid || newData.child('scoredQuestions').val() == data.child('scoredQuestions').val())",
+          "connected": {
+            ".write": "auth != null && auth.uid == $uid && data.parent().exists()",
+            ".validate": "newData.isBoolean()"
+          },
+          "score": {
+            ".write": "auth != null && root.child('rooms').child($roomId).child('hostUid').val() == auth.uid && data.parent().exists()",
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "scoredQuestions": {
+            ".write": "auth != null && root.child('rooms').child($roomId).child('hostUid').val() == auth.uid && data.parent().exists()",
+            ".validate": "!newData.exists() || newData.isNumber()"
+          }
         }
       }
     },
     "roomAnswers": {
       "$roomId": {
+        ".read": "auth != null && root.child('rooms').child($roomId).child('hostUid').val() == auth.uid",
         ".write": "auth != null && root.child('rooms').child($roomId).child('hostUid').val() == auth.uid && !newData.exists()",
         "$questionId": {
-          ".read": "auth != null && root.child('roomPlayers').child($roomId).child(auth.uid).exists() && (root.child('rooms').child($roomId).child('hostUid').val() == auth.uid || root.child('rooms').child($roomId).child('status').val() == 'QUESTION_RESULTS' || root.child('rooms').child($roomId).child('status').val() == 'LEADERBOARD')",
+          ".read": "auth != null && root.child('roomPlayers').child($roomId).child(auth.uid).exists() && (root.child('rooms').child($roomId).child('hostUid').val() == auth.uid || root.child('rooms').child($roomId).child('status').val() == 'COUNTDOWN' || root.child('rooms').child($roomId).child('status').val() == 'QUESTION_RESULTS' || root.child('rooms').child($roomId).child('status').val() == 'LEADERBOARD')",
           "$uid": {
             ".read": "auth != null && auth.uid == $uid && root.child('roomPlayers').child($roomId).child(auth.uid).exists()",
-            ".write": "auth != null && auth.uid == $uid && root.child('roomPlayers').child($roomId).child(auth.uid).exists() && root.child('rooms').child($roomId).child('status').val() == 'QUESTION'",
+            ".write": "auth != null && ((auth.uid == $uid && root.child('roomPlayers').child($roomId).child(auth.uid).exists() && root.child('rooms').child($roomId).child('status').val() == 'QUESTION') || (root.child('rooms').child($roomId).child('hostUid').val() == auth.uid && !newData.exists()))",
             ".validate": "newData.hasChildren(['answer', 'answeredAt']) && newData.child('answer').isString() && newData.child('answer').val().length > 0 && newData.child('answer').val().length <= 300 && newData.child('answeredAt').isNumber() && newData.child('answeredAt').val() <= now + 5000"
+          }
+        }
+      }
+    },
+    "roomAnswerStatus": {
+      "$roomId": {
+        ".read": "auth != null && root.child('rooms').child($roomId).child('hostUid').val() == auth.uid",
+        ".write": "auth != null && root.child('rooms').child($roomId).child('hostUid').val() == auth.uid && !newData.exists()",
+        "$questionId": {
+          ".read": "auth != null && root.child('roomPlayers').child($roomId).child(auth.uid).exists()",
+          "$uid": {
+            ".write": "auth != null && ((auth.uid == $uid && root.child('roomPlayers').child($roomId).child(auth.uid).exists() && root.child('rooms').child($roomId).child('status').val() == 'QUESTION') || (root.child('rooms').child($roomId).child('hostUid').val() == auth.uid && !newData.exists()))",
+            ".validate": "newData.val() == true"
           }
         }
       }

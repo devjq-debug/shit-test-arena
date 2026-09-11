@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin · SHIT TEST ARENA</title>
+  <meta name="theme-color" content="#0a0a0c"/>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            arena: {
+              black: '#0a0a0c',
+              dark: '#121215',
+              card: '#18181c',
+              cardborder: '#27272e',
+              pink: '#ff1a75',
+              orange: '#f97316',
+              gold: '#fbbf24',
+              muted: '#8b8b98'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Menlo', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap');
+    * { box-sizing: border-box; }
+    body { font-family: Inter, system-ui, sans-serif; background: #0a0a0c; }
+    .gradient-btn { background: linear-gradient(135deg, #ff1a75 0%, #f97316 100%); }
+  </style>
+</head>
+<body class="min-h-screen bg-arena-black text-gray-100">
+  <main class="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
+    <header class="flex flex-col gap-3 border-b border-arena-cardborder pb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <a href="/" class="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-arena-pink">← Volver al juego</a>
+        <h1 class="mt-2 text-2xl font-black uppercase tracking-tight text-white">Panel Admin</h1>
+        <p class="mt-1 text-sm text-gray-400">Banco persistente de preguntas y categorías en Cloud Firestore.</p>
+      </div>
+      <button id="logout-btn" class="hidden rounded-xl border border-arena-cardborder bg-arena-card px-4 py-2 text-xs font-bold uppercase text-gray-200 hover:bg-arena-cardborder">Cerrar sesión</button>
+    </header>
+
+    <section id="login-view" class="mx-auto mt-10 w-full max-w-md rounded-2xl border border-arena-cardborder bg-arena-card p-5 shadow-2xl">
+      <div class="mb-4">
+        <div class="font-mono text-[10px] font-bold uppercase tracking-widest text-arena-gold">Acceso privado</div>
+        <h2 class="mt-1 text-xl font-black text-white">Iniciar sesión</h2>
+        <p class="mt-1 text-xs text-gray-400">Solo usuarios de Firebase Authentication autorizados en `admins/{uid}`.</p>
+      </div>
+      <form id="login-form" class="space-y-3">
+        <label class="block">
+          <span class="text-xs font-bold uppercase text-gray-300">Email</span>
+          <input id="admin-email" type="email" autocomplete="username" required class="mt-1 w-full rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-sm text-white focus:border-arena-pink focus:ring-arena-pink"/>
+        </label>
+        <label class="block">
+          <span class="text-xs font-bold uppercase text-gray-300">Contraseña</span>
+          <input id="admin-password" type="password" autocomplete="current-password" required class="mt-1 w-full rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-sm text-white focus:border-arena-pink focus:ring-arena-pink"/>
+        </label>
+        <button class="gradient-btn w-full rounded-xl px-4 py-3 text-sm font-black uppercase tracking-wide text-white">Entrar</button>
+      </form>
+      <p id="login-error" class="mt-3 hidden rounded-xl border border-red-500/40 bg-red-950/30 px-3 py-2 text-xs text-red-200"></p>
+    </section>
+
+    <section id="admin-view" class="hidden grid gap-5 lg:grid-cols-[360px_1fr]">
+      <aside class="space-y-5">
+        <div class="rounded-2xl border border-arena-cardborder bg-arena-card p-4">
+          <div class="mb-3 flex items-center justify-between">
+            <h2 class="font-mono text-xs font-black uppercase text-white">Categorías</h2>
+            <span id="category-count" class="text-[10px] font-mono text-arena-muted">0</span>
+          </div>
+          <form id="category-form" class="space-y-3">
+            <input id="category-id" type="hidden"/>
+            <input id="category-name" required maxlength="60" placeholder="Nombre de categoría" class="w-full rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-arena-pink focus:ring-arena-pink"/>
+            <label class="flex items-center gap-2 text-xs text-gray-300">
+              <input id="category-active" type="checkbox" checked class="rounded border-arena-cardborder bg-arena-dark text-arena-pink focus:ring-arena-pink"/>
+              Activa
+            </label>
+            <div class="grid grid-cols-2 gap-2">
+              <button class="gradient-btn rounded-xl px-3 py-2 text-xs font-black uppercase text-white">Guardar</button>
+              <button id="category-reset" type="button" class="rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-xs font-bold uppercase text-gray-300">Nuevo</button>
+            </div>
+          </form>
+          <div id="category-list" class="mt-4 space-y-2"></div>
+        </div>
+
+        <div class="rounded-2xl border border-arena-cardborder bg-arena-card p-4">
+          <h2 class="font-mono text-xs font-black uppercase text-white">Semilla inicial</h2>
+          <p class="mt-2 text-xs text-gray-400">Importa el banco base actual a Firestore si todavía no lo hiciste.</p>
+          <button id="seed-btn" class="mt-3 w-full rounded-xl border border-arena-pink/50 bg-arena-pink/10 px-3 py-2 text-xs font-black uppercase text-arena-pink hover:bg-arena-pink/20">Importar preguntas base</button>
+        </div>
+      </aside>
+
+      <section class="space-y-5">
+        <div class="rounded-2xl border border-arena-cardborder bg-arena-card p-4">
+          <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 class="font-mono text-xs font-black uppercase text-white">Preguntas</h2>
+              <p class="mt-1 text-xs text-gray-400">Crear, editar, activar/desactivar, buscar y eliminar.</p>
+            </div>
+            <span id="question-count" class="text-[10px] font-mono text-arena-muted">0 preguntas</span>
+          </div>
+
+          <form id="question-form" class="grid gap-3">
+            <input id="question-id" type="hidden"/>
+            <textarea id="question-text" required maxlength="300" rows="3" placeholder="Escribe la pregunta..." class="w-full resize-none rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-arena-pink focus:ring-arena-pink"></textarea>
+            <div class="grid gap-3 sm:grid-cols-[1fr_auto]">
+              <select id="question-category" required class="rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-sm text-white focus:border-arena-pink focus:ring-arena-pink"></select>
+              <label class="flex items-center gap-2 rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-xs text-gray-300">
+                <input id="question-active" type="checkbox" checked class="rounded border-arena-cardborder bg-arena-dark text-arena-pink focus:ring-arena-pink"/>
+                Activa
+              </label>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button class="gradient-btn rounded-xl px-3 py-2 text-xs font-black uppercase text-white">Guardar pregunta</button>
+              <button id="question-reset" type="button" class="rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-xs font-bold uppercase text-gray-300">Nueva</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="rounded-2xl border border-arena-cardborder bg-arena-card p-4">
+          <div class="grid gap-3 sm:grid-cols-[1fr_220px]">
+            <input id="question-search" placeholder="Buscar pregunta..." class="rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-arena-pink focus:ring-arena-pink"/>
+            <select id="question-filter-category" class="rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-sm text-white focus:border-arena-pink focus:ring-arena-pink"></select>
+          </div>
+          <div id="question-list" class="mt-4 grid gap-3"></div>
+        </div>
+      </section>
+    </section>
+
+    <div id="admin-toast" class="fixed left-1/2 top-4 z-50 hidden max-w-sm -translate-x-1/2 rounded-xl border border-emerald-500/40 bg-emerald-950/95 px-4 py-3 text-xs font-mono text-emerald-200 shadow-2xl"></div>
+  </main>
+
+  <script type="module" src="/js/admin.js?v=5"></script>
+</body>
+</html>
