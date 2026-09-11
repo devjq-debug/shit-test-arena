@@ -81,6 +81,62 @@
       100% { transform: scale(0.95); opacity: 0.8; }
     }
 
+    .screen-container:not(.hidden) {
+      animation: screen-in 260ms ease-out both;
+    }
+
+    @keyframes screen-in {
+      from { opacity: 0; transform: translateY(10px) scale(0.99); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .countdown-pop {
+      animation: countdown-pop 420ms cubic-bezier(.2, 1.6, .4, 1) both;
+    }
+
+    @keyframes countdown-pop {
+      0% { transform: scale(0.72); opacity: 0.25; filter: blur(4px); }
+      55% { transform: scale(1.16); opacity: 1; filter: blur(0); }
+      100% { transform: scale(1); opacity: 1; filter: blur(0); }
+    }
+
+    .time-critical {
+      color: #ef4444 !important;
+      text-shadow: 0 0 18px rgba(239, 68, 68, 0.75);
+      animation: danger-pulse 520ms ease-in-out infinite alternate;
+    }
+
+    .time-bar-critical {
+      box-shadow: 0 0 22px rgba(239, 68, 68, 0.85);
+      background: linear-gradient(90deg, #ef4444, #ff1a75, #f97316) !important;
+    }
+
+    .battle-card {
+      transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .battle-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 22px rgba(255, 26, 117, 0.16);
+    }
+
+    .winner-card {
+      border-color: rgba(251, 191, 36, 0.8) !important;
+      box-shadow: 0 0 30px rgba(251, 191, 36, 0.18);
+      animation: winner-pop 620ms ease-out both;
+    }
+
+    @keyframes winner-pop {
+      0% { transform: scale(0.98); }
+      45% { transform: scale(1.025); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes danger-pulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.045); }
+    }
+
     .text-stroke-title {
       letter-spacing: -0.04em;
     }
@@ -378,6 +434,13 @@
           </select>
         </div>
 
+        <div>
+          <label class="block text-[10px] font-mono uppercase tracking-wider text-gray-300 font-bold mb-1.5">MODO POR TÉCNICA</label>
+          <select data-technique-select class="w-full bg-arena-dark border border-arena-cardborder rounded-xl px-3 py-2 text-xs text-gray-200 font-medium focus:border-arena-pink focus:ring-1 focus:ring-arena-pink">
+            <option value="">Todas las técnicas</option>
+          </select>
+        </div>
+
         <!-- TOGGLE ORDEN ALEATORIO -->
         <div class="flex items-center justify-between bg-arena-dark/70 p-3 rounded-xl border border-arena-cardborder/70">
           <div>
@@ -388,6 +451,14 @@
             <input data-random-order type="checkbox" checked class="sr-only peer">
             <div class="w-9 h-5 bg-arena-cardborder peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-arena-pink"></div>
           </label>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <label class="flex items-center justify-between bg-arena-dark/70 p-3 rounded-xl border border-arena-cardborder/70">
+            <span class="text-[10px] font-mono font-bold text-gray-300 uppercase">Modo presión</span>
+            <input data-pressure-mode type="checkbox" class="rounded border-arena-cardborder bg-arena-dark text-arena-pink focus:ring-arena-pink"/>
+          </label>
+          <button data-sound-toggle type="button" class="bg-arena-dark/70 p-3 rounded-xl border border-arena-cardborder/70 text-[10px] font-mono font-bold text-gray-300 uppercase">Sonido: OFF</button>
         </div>
 
         <!-- RESUMEN INFERIOR -->
@@ -762,7 +833,7 @@
             </div>
             <!-- BARRA DE TIEMPO PROGRESIVA -->
             <div class="w-full bg-arena-dark h-2 rounded-full overflow-hidden mt-2 border border-arena-cardborder/70">
-              <div class="bg-gradient-to-r from-arena-pink to-arena-orange h-full rounded-full w-[80%] transition-all duration-300"></div>
+              <div data-time-bar class="bg-gradient-to-r from-arena-pink to-arena-orange h-full rounded-full transition-all duration-300" style="width: 100%"></div>
             </div>
           </div>
         </div>
@@ -826,7 +897,7 @@
           <span class="text-xs font-mono font-bold text-arena-muted">SEG</span>
         </div>
         <div class="w-full bg-arena-dark h-1.5 rounded-full overflow-hidden mt-1 border border-arena-cardborder">
-          <div class="bg-arena-orange h-full rounded-full w-[50%]"></div>
+          <div data-time-bar class="bg-arena-orange h-full rounded-full transition-all duration-300" style="width: 100%"></div>
         </div>
       </div>
 
@@ -913,7 +984,7 @@
         <div class="font-black text-xs tracking-wider uppercase text-white">SHIT TEST ARENA</div>
         <div class="flex items-center gap-2 font-mono text-xs">
           <span data-round-label class="text-white font-bold bg-arena-card px-2 py-0.5 rounded border border-arena-cardborder">RONDA 3 / 10</span>
-          <span class="text-arena-pink font-bold bg-arena-pink/15 px-2 py-0.5 rounded border border-arena-pink/30">REVELACIÓN</span>
+          <span data-reveal-phase-label class="text-arena-pink font-bold bg-arena-pink/15 px-2 py-0.5 rounded border border-arena-pink/30">VOTACIÓN</span>
         </div>
       </header>
 
@@ -934,10 +1005,20 @@
         </p>
       </div>
 
+      <div data-personal-analysis class="bg-arena-dark/90 border border-arena-cardborder rounded-xl p-3 shadow-card">
+        <div class="text-[10px] font-mono font-black uppercase tracking-wider text-arena-pink">Tu respuesta vs referencia</div>
+        <div class="mt-2 text-xs text-gray-400">Responde la ronda para ver comparación personal.</div>
+      </div>
+
+      <div data-round-winner class="hidden rounded-xl border border-arena-gold/50 bg-arena-gold/10 p-3 text-center shadow-card">
+        <div class="text-[10px] font-mono font-black uppercase tracking-wider text-arena-gold">Ganador de ronda</div>
+        <div data-round-winner-name class="mt-1 text-lg font-black text-white">---</div>
+      </div>
+
       <!-- TÍTULO SECCIÓN -->
       <div class="flex items-center justify-between">
-        <span class="text-xs font-mono font-bold text-gray-300 uppercase">LO QUE PUSO CADA UNO</span>
-        <span class="text-[10px] font-mono text-arena-gold">SIN FILTROS NI DISCULPAS</span>
+        <span data-answer-section-title class="text-xs font-mono font-bold text-gray-300 uppercase">VOTA LA MEJOR RESPUESTA</span>
+        <span data-vote-summary class="text-[10px] font-mono text-arena-gold">VOTACIÓN ANÓNIMA</span>
       </div>
 
       <!-- TARJETAS DE RESPUESTAS INDIVIDUALES -->
@@ -950,7 +1031,7 @@
         <!-- VISTA PARA HOST -->
         <div class="space-y-1">
           <button data-game-action="next-question" class="w-full gradient-btn text-white py-3.5 px-4 rounded-xl font-black text-sm tracking-wider uppercase shadow-glow-pink flex items-center justify-center gap-2">
-            <span>⚡ SIGUIENTE SHIT TEST</span>
+            <span data-next-main-label>⚡ REVELAR RESULTADOS</span>
             <span data-next-label class="text-xs font-mono font-normal">(RONDA 4 / 10)</span>
           </button>
         </div>
@@ -1069,6 +1150,18 @@
             <option>Difíciles / Sin piedad</option>
           </select>
         </div>
+
+        <div>
+          <label class="block text-[10px] font-mono uppercase tracking-wider text-gray-300 font-bold mb-1.5">TÉCNICA</label>
+          <select data-host-technique-select class="w-full bg-arena-dark border border-arena-cardborder rounded-xl px-3 py-2 text-xs text-gray-200 font-medium">
+            <option value="">Todas las técnicas</option>
+          </select>
+        </div>
+
+        <label class="flex items-center justify-between bg-arena-dark/70 p-3 rounded-xl border border-arena-cardborder/70">
+          <span class="text-[10px] font-mono font-bold text-gray-300 uppercase">Modo presión</span>
+          <input data-host-pressure-mode type="checkbox" class="rounded border-arena-cardborder bg-arena-dark text-arena-pink focus:ring-arena-pink"/>
+        </label>
 
         <!-- RESUMEN -->
         <div class="bg-arena-dark/70 p-2.5 rounded-xl border border-arena-cardborder text-[11px] font-mono flex items-center justify-between text-gray-300">
@@ -1397,6 +1490,6 @@ void main() {
     </form>
   </div>
 
-  <script type="module" src="/js/app.js?v=25"></script>
+  <script type="module" src="/js/app.js?v=26"></script>
 </body>
 </html>

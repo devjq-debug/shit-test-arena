@@ -132,10 +132,17 @@
             <input id="question-id" type="hidden"/>
             <textarea id="question-text" required maxlength="300" rows="3" placeholder="Escribe la pregunta..." class="w-full resize-none rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-arena-pink focus:ring-arena-pink"></textarea>
             <textarea id="question-recommended-answer" maxlength="1200" rows="4" placeholder="Respuesta recomendada que se mostrará al terminar el tiempo..." class="w-full resize-none rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-arena-pink focus:ring-arena-pink"></textarea>
+            <textarea id="question-reference-answers" maxlength="1800" rows="3" placeholder="Varias respuestas de referencia, una por línea..." class="w-full resize-none rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-arena-pink focus:ring-arena-pink"></textarea>
             <div class="grid gap-3 sm:grid-cols-2">
               <input id="question-technique" maxlength="160" placeholder="Técnica o lógica de respuesta" class="rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-arena-pink focus:ring-arena-pink"/>
-              <input id="question-source" maxlength="160" placeholder="Origen o nota interna" class="rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-arena-pink focus:ring-arena-pink"/>
+              <select id="question-difficulty" class="rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-sm text-white focus:border-arena-pink focus:ring-arena-pink">
+                <option value="baja">Baja</option>
+                <option value="media" selected>Media</option>
+                <option value="alta">Alta</option>
+                <option value="experta">Experta</option>
+              </select>
             </div>
+            <input id="question-source" maxlength="160" placeholder="Origen o nota interna" class="rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-arena-pink focus:ring-arena-pink"/>
             <div class="grid gap-3 sm:grid-cols-[1fr_auto]">
               <select id="question-category" required class="rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-sm text-white focus:border-arena-pink focus:ring-arena-pink"></select>
               <label class="flex items-center gap-2 rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-xs text-gray-300">
@@ -163,6 +170,6 @@
     <div id="admin-toast" class="fixed left-1/2 top-4 z-50 hidden max-w-sm -translate-x-1/2 rounded-xl border border-emerald-500/40 bg-emerald-950/95 px-4 py-3 text-xs font-mono text-emerald-200 shadow-2xl"></div>
   </main>
 
-  <script type="module" src="/js/admin.js?v=9"></script>
+  <script type="module" src="/js/admin.js?v=10"></script>
 </body>
 </html>

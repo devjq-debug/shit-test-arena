@@ -36,6 +36,16 @@ export const DEFAULT_QUESTIONS = [
 ];
 
 const DEFAULT_RECOMMENDED_ANSWER = 'Responde con calma, humor breve y marco propio. Evita justificarte, atacar o perseguir aprobación.';
+export const TECHNIQUE_OPTIONS = [
+  { id: '', name: 'Todas las técnicas' },
+  { id: 'cambio-presion', name: 'Cambio de presión', match: 'cambio de presión' },
+  { id: 'malinterpretar', name: 'Malinterpretar a favor', match: 'malinterpretar' },
+  { id: 'amplificar', name: 'Amplificar', match: 'amplificar' },
+  { id: 'desviar', name: 'Desviar', match: 'desv' },
+  { id: 'descualificacion', name: 'Descualificación', match: 'descualificación' },
+  { id: 'absurdo', name: 'Humor absurdo', match: 'absurdo' },
+  { id: 'limites', name: 'Límites / no perseguir', match: 'límite' }
+];
 
 const normalizeCategory = (snapshot) => ({ id: snapshot.id, ...snapshot.data() });
 const normalizeQuestion = (snapshot) => ({ id: snapshot.id, ...snapshot.data() });
@@ -51,8 +61,10 @@ export function formatRoomQuestion(question) {
     text: question.text,
     categoryId: question.categoryId || 'fallback',
     recommendedAnswer: question.recommendedAnswer || DEFAULT_RECOMMENDED_ANSWER,
+    referenceAnswers: Array.isArray(question.referenceAnswers) ? question.referenceAnswers : [],
     technique: question.technique || '',
-    source: question.source || ''
+    source: question.source || '',
+    difficulty: question.difficulty || 'media'
   };
 }
 
@@ -63,8 +75,10 @@ function fallbackQuestionBank() {
     categoryId: 'fallback',
     active: true,
     recommendedAnswer: DEFAULT_RECOMMENDED_ANSWER,
+    referenceAnswers: [DEFAULT_RECOMMENDED_ANSWER],
     technique: 'calibración / marco propio',
-    source: 'banco base'
+    source: 'banco base',
+    difficulty: 'media'
   }));
 }
 
@@ -78,6 +92,10 @@ export async function loadGameCategories() {
   }
 }
 
+export function loadGameTechniques() {
+  return TECHNIQUE_OPTIONS;
+}
+
 export async function loadActiveQuestions(categoryId = '') {
   const snapshot = await getDocs(query(collection(firestore, 'questions'), where('active', '==', true)));
   return snapshot.docs
@@ -86,13 +104,21 @@ export async function loadActiveQuestions(categoryId = '') {
     .filter((question) => !categoryId || question.categoryId === categoryId);
 }
 
-export async function pickQuestionsForRoom({ categoryId = '', roundCount = 10 } = {}) {
+function matchesTechnique(question, techniqueId = '') {
+  if (!techniqueId) return true;
+  const option = TECHNIQUE_OPTIONS.find((item) => item.id === techniqueId);
+  const haystack = `${question.technique || ''} ${question.text || ''} ${question.recommendedAnswer || ''}`.toLowerCase();
+  return option ? haystack.includes(option.match.toLowerCase()) : true;
+}
+
+export async function pickQuestionsForRoom({ categoryId = '', techniqueId = '', roundCount = 10 } = {}) {
   let questions = [];
   try {
     questions = await loadActiveQuestions(categoryId);
     if (categoryId && questions.length < roundCount) {
       questions = uniqueById([...questions, ...(await loadActiveQuestions(''))]);
     }
+    questions = questions.filter((question) => matchesTechnique(question, techniqueId));
   } catch {
     questions = [];
   }
@@ -138,26 +164,30 @@ export async function deleteCategory(categoryId) {
   return deleteDoc(doc(firestore, 'categories', categoryId));
 }
 
-export async function createQuestion({ text, categoryId, active = true, recommendedAnswer = '', technique = '', source = '' }) {
+export async function createQuestion({ text, categoryId, active = true, recommendedAnswer = '', referenceAnswers = [], technique = '', source = '', difficulty = 'media' }) {
   return addDoc(collection(firestore, 'questions'), {
     text: text.trim(),
     categoryId,
     recommendedAnswer: recommendedAnswer.trim(),
+    referenceAnswers,
     technique: technique.trim(),
     source: source.trim(),
+    difficulty,
     active,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
 }
 
-export async function updateQuestion(questionId, { text, categoryId, active, recommendedAnswer = '', technique = '', source = '' }) {
+export async function updateQuestion(questionId, { text, categoryId, active, recommendedAnswer = '', referenceAnswers = [], technique = '', source = '', difficulty = 'media' }) {
   return updateDoc(doc(firestore, 'questions', questionId), {
     text: text.trim(),
     categoryId,
     recommendedAnswer: recommendedAnswer.trim(),
+    referenceAnswers,
     technique: technique.trim(),
     source: source.trim(),
+    difficulty,
     active,
     updatedAt: serverTimestamp()
   });
@@ -184,6 +214,6 @@ export async function seedDefaultQuestions() {
   const existingQuestions = await listQuestionsForAdmin();
   const existingTexts = new Set(existingQuestions.map((question) => String(question.text || '').trim().toLowerCase()));
   const missing = DEFAULT_QUESTIONS.filter((text) => !existingTexts.has(text.trim().toLowerCase()));
-  await Promise.all(missing.map((text) => createQuestion({ text, categoryId: general.id, active: true, recommendedAnswer: DEFAULT_RECOMMENDED_ANSWER, technique: 'calibración / marco propio', source: 'banco base' })));
+  await Promise.all(missing.map((text) => createQuestion({ text, categoryId: general.id, active: true, recommendedAnswer: DEFAULT_RECOMMENDED_ANSWER, referenceAnswers: [DEFAULT_RECOMMENDED_ANSWER], technique: 'calibración / marco propio', source: 'banco base', difficulty: 'media' })));
   return { category: general, created: missing.length };
 }

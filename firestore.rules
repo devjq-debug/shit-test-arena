@@ -38,30 +38,34 @@ service cloud.firestore {
     }
 
     function validQuestionCreate() {
-      return request.resource.data.keys().hasOnly(['text', 'categoryId', 'recommendedAnswer', 'technique', 'source', 'active', 'createdAt', 'updatedAt'])
+      return request.resource.data.keys().hasOnly(['text', 'categoryId', 'recommendedAnswer', 'referenceAnswers', 'technique', 'source', 'difficulty', 'active', 'createdAt', 'updatedAt'])
         && request.resource.data.text is string
         && request.resource.data.text.size() > 0
         && request.resource.data.text.size() <= 300
         && request.resource.data.categoryId is string
         && exists(/databases/$(database)/documents/categories/$(request.resource.data.categoryId))
         && (!('recommendedAnswer' in request.resource.data) || (request.resource.data.recommendedAnswer is string && request.resource.data.recommendedAnswer.size() <= 1200))
+        && (!('referenceAnswers' in request.resource.data) || (request.resource.data.referenceAnswers is list && request.resource.data.referenceAnswers.size() <= 8))
         && (!('technique' in request.resource.data) || (request.resource.data.technique is string && request.resource.data.technique.size() <= 160))
         && (!('source' in request.resource.data) || (request.resource.data.source is string && request.resource.data.source.size() <= 160))
+        && (!('difficulty' in request.resource.data) || (request.resource.data.difficulty in ['baja', 'media', 'alta', 'experta']))
         && request.resource.data.active is bool
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
     }
 
     function validQuestionUpdate() {
-      return request.resource.data.keys().hasOnly(['text', 'categoryId', 'recommendedAnswer', 'technique', 'source', 'active', 'createdAt', 'updatedAt'])
+      return request.resource.data.keys().hasOnly(['text', 'categoryId', 'recommendedAnswer', 'referenceAnswers', 'technique', 'source', 'difficulty', 'active', 'createdAt', 'updatedAt'])
         && request.resource.data.text is string
         && request.resource.data.text.size() > 0
         && request.resource.data.text.size() <= 300
         && request.resource.data.categoryId is string
         && exists(/databases/$(database)/documents/categories/$(request.resource.data.categoryId))
         && (!('recommendedAnswer' in request.resource.data) || (request.resource.data.recommendedAnswer is string && request.resource.data.recommendedAnswer.size() <= 1200))
+        && (!('referenceAnswers' in request.resource.data) || (request.resource.data.referenceAnswers is list && request.resource.data.referenceAnswers.size() <= 8))
         && (!('technique' in request.resource.data) || (request.resource.data.technique is string && request.resource.data.technique.size() <= 160))
         && (!('source' in request.resource.data) || (request.resource.data.source is string && request.resource.data.source.size() <= 160))
+        && (!('difficulty' in request.resource.data) || (request.resource.data.difficulty in ['baja', 'media', 'alta', 'experta']))
         && request.resource.data.active is bool
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.updatedAt == request.time;

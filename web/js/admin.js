@@ -11,10 +11,11 @@ import {
   setQuestionActive,
   updateCategory,
   updateQuestion
-} from './question-service.js?v=4';
+} from './question-service.js?v=5';
 
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value = '') => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+const splitReferenceAnswers = (value = '') => String(value).split('\n').map((item) => item.trim()).filter(Boolean).slice(0, 8);
 
 const state = {
   categories: [],
@@ -61,8 +62,10 @@ function resetQuestionForm() {
   $('#question-id').value = '';
   $('#question-text').value = '';
   $('#question-recommended-answer').value = '';
+  $('#question-reference-answers').value = '';
   $('#question-technique').value = '';
   $('#question-source').value = '';
+  $('#question-difficulty').value = 'media';
   $('#question-active').checked = true;
   if ($('#question-category').options.length) $('#question-category').selectedIndex = 0;
 }
@@ -117,6 +120,7 @@ function renderQuestions() {
           <div class="mt-2 flex flex-wrap gap-2 font-mono text-[10px]">
             <span class="rounded-lg border border-arena-cardborder px-2 py-1 text-arena-gold">${escapeHtml(categoryName(question.categoryId))}</span>
             ${question.technique ? `<span class="rounded-lg border border-arena-cardborder px-2 py-1 text-gray-300">${escapeHtml(question.technique)}</span>` : ''}
+            <span class="rounded-lg border border-arena-cardborder px-2 py-1 text-gray-400">${escapeHtml(question.difficulty || 'media')}</span>
             <span class="${question.active ? 'text-emerald-400' : 'text-gray-500'} rounded-lg border border-arena-cardborder px-2 py-1">${question.active ? 'ACTIVA' : 'INACTIVA'}</span>
           </div>
         </div>
@@ -170,8 +174,10 @@ async function handleQuestionSubmit(event) {
   const payload = {
     text: $('#question-text').value,
     recommendedAnswer: $('#question-recommended-answer').value,
+    referenceAnswers: splitReferenceAnswers($('#question-reference-answers').value),
     technique: $('#question-technique').value,
     source: $('#question-source').value,
+    difficulty: $('#question-difficulty').value,
     categoryId: $('#question-category').value,
     active: $('#question-active').checked
   };
@@ -220,8 +226,10 @@ function bindDelegatedActions() {
         $('#question-id').value = question.id;
         $('#question-text').value = question.text;
         $('#question-recommended-answer').value = question.recommendedAnswer || '';
+        $('#question-reference-answers').value = Array.isArray(question.referenceAnswers) ? question.referenceAnswers.join('\n') : '';
         $('#question-technique').value = question.technique || '';
         $('#question-source').value = question.source || '';
+        $('#question-difficulty').value = question.difficulty || 'media';
         $('#question-category').value = question.categoryId;
         $('#question-active').checked = question.active;
         window.scrollTo({ top: 0, behavior: 'smooth' });

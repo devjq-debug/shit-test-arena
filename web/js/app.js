@@ -1,9 +1,9 @@
 import { ensurePlayerUser } from './auth.js?v=4';
-import { fallbackQuestionText, loadGameCategories, pickQuestionsForRoom } from './question-service.js?v=4';
-import { evaluateAnswer, getCurrentRoomQuestion, recommendedAnswerForRoom } from './response-evaluator.js?v=1';
+import { fallbackQuestionText, loadGameCategories, loadGameTechniques, pickQuestionsForRoom } from './question-service.js?v=5';
+import { evaluateAnswer, getCurrentRoomQuestion, recommendedAnswerForRoom } from './response-evaluator.js?v=2';
 import { database, ref, set, update, get, onValue, onDisconnect, push, remove, runTransaction, serverTimestamp } from './game/realtime.js?v=2';
 
-const state = { uid: null, roomId: null, room: null, players: {}, currentAnswers: {}, ownAnswer: '', activeQuestion: null, loadedAnswerQuestion: null, serverOffset: 0, hasConnectedOnce: false, unsubscribers: [], answerUnsubscribe: null, answerQuestion: null, answerStatusUnsubscribe: null, answerStatusQuestion: null, timer: null, closeTimer: null, countdownTimer: null, countdownPaintTimer: null, scoring: false, submittingAnswer: false, settings: { duration: 10, rounds: 10 } };
+const state = { uid: null, roomId: null, room: null, players: {}, currentAnswers: {}, votes: {}, ownAnswer: '', activeQuestion: null, loadedAnswerQuestion: null, serverOffset: 0, hasConnectedOnce: false, unsubscribers: [], answerUnsubscribe: null, answerQuestion: null, answerStatusUnsubscribe: null, answerStatusQuestion: null, voteUnsubscribe: null, voteQuestion: null, timer: null, closeTimer: null, countdownTimer: null, countdownPaintTimer: null, autoRevealTimer: null, scoring: false, submittingAnswer: false, submittingVote: false, soundEnabled: localStorage.getItem('arenaSound') === 'on', settings: { duration: 10, rounds: 10, pressureMode: false, techniqueId: '' } };
 const settingPainters = {};
 let customDurationApply = null;
 let delegatedActionsBound = false;
@@ -15,6 +15,8 @@ const isHost = () => Boolean(state.room && state.uid === state.room.hostUid);
 const formatCategoryLabel = (value = 'Todas las categorías') => value.replace(/\s*\([^)]*\)/g, '').replace('Todas las categorías', 'Todas').toUpperCase();
 const roomQuestionText = (room, number) => room?.questionSet?.[number - 1]?.text || room?.questions?.[number - 1]?.text || fallbackQuestionText(number - 1);
 const roomQuestion = (room, number) => room?.questionSet?.[Math.max(0, Number(number || 1) - 1)] || room?.questions?.[Math.max(0, Number(number || 1) - 1)] || null;
+const effectiveDuration = (base, round, pressureMode) => Math.max(5, Number(base || 10) - (pressureMode ? Math.max(0, Number(round || 1) - 1) : 0));
+const currentQuestionDuration = (room) => Number(room?.currentQuestionDuration || effectiveDuration(room?.questionDuration, room?.currentQuestion || 1, room?.pressureMode));
 
 function selectedCategory(selector) {
   const select = $(selector);
@@ -24,16 +26,33 @@ function selectedCategory(selector) {
   };
 }
 
+function selectedTechnique(selector) {
+  const select = $(selector);
+  return {
+    techniqueId: select?.value || '',
+    technique: select?.selectedOptions?.[0]?.textContent?.trim() || 'Todas las técnicas'
+  };
+}
+
 function fillCategorySelect(select, categories, selectedId = '') {
   if (!select) return;
   select.innerHTML = categories.map((category) => `<option value="${escapeHtml(category.id)}">${escapeHtml(category.name)}</option>`).join('');
   select.value = selectedId;
 }
 
+function fillTechniqueSelect(select, techniques, selectedId = '') {
+  if (!select) return;
+  select.innerHTML = techniques.map((technique) => `<option value="${escapeHtml(technique.id)}">${escapeHtml(technique.name)}</option>`).join('');
+  select.value = selectedId;
+}
+
 async function populateCategorySelectors() {
   const categories = await loadGameCategories();
+  const techniques = loadGameTechniques();
   fillCategorySelect($('[data-category-select]'), categories);
   fillCategorySelect($('[data-host-category-select]'), categories);
+  fillTechniqueSelect($('[data-technique-select]'), techniques);
+  fillTechniqueSelect($('[data-host-technique-select]'), techniques);
   const category = selectedCategory('[data-category-select]').category;
   $('[data-category-summary]') && ($('[data-category-summary]').textContent = formatCategoryLabel(category));
   $('[data-host-category-summary]') && ($('[data-host-category-summary]').textContent = formatCategoryLabel(category));
@@ -76,6 +95,32 @@ async function copyText(value, successMessage) {
   setTimeout(() => toast.remove(), 2200);
 }
 
+function updateSoundButtons() {
+  document.querySelectorAll('[data-sound-toggle]').forEach((button) => {
+    button.textContent = `Sonido: ${state.soundEnabled ? 'ON' : 'OFF'}`;
+    button.classList.toggle('text-arena-gold', state.soundEnabled);
+  });
+}
+
+function playSound(type) {
+  if (!state.soundEnabled) return;
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return;
+  const context = new AudioContext();
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  const tones = { start: 660, tick: 520, time: 180, reveal: 740, victory: 880 };
+  oscillator.frequency.value = tones[type] || 440;
+  oscillator.type = type === 'time' ? 'sawtooth' : 'triangle';
+  gain.gain.setValueAtTime(0.0001, context.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.08, context.currentTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + (type === 'victory' ? 0.38 : 0.16));
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start();
+  oscillator.stop(context.currentTime + (type === 'victory' ? 0.4 : 0.18));
+}
+
 async function removeDirectChildren(path) {
   const snapshot = await get(ref(database, path));
   const value = snapshot.val();
@@ -97,7 +142,7 @@ async function removeAnswerChildren(path) {
 
 async function clearRoomAnswers(roomId) {
   if (!roomId) return;
-  await Promise.all([removeAnswerChildren(`roomAnswers/${roomId}`), removeAnswerChildren(`roomAnswerStatus/${roomId}`)]);
+  await Promise.all([removeAnswerChildren(`roomAnswers/${roomId}`), removeAnswerChildren(`roomAnswerStatus/${roomId}`), removeAnswerChildren(`roomVotes/${roomId}`)]);
 }
 
 function replaceReferenceText(room) {
@@ -110,9 +155,9 @@ function replaceReferenceText(room) {
   document.querySelectorAll('[data-round-label]').forEach((element) => { element.textContent = `RONDA ${room.currentQuestion || 1} / ${room.roundCount}`; });
   document.querySelectorAll('[data-question-label]').forEach((element) => { element.textContent = `SHIT TEST #${String(room.currentQuestion || 1).padStart(2, '0')}`; });
   document.querySelectorAll('[data-countdown-copy]').forEach((element) => { element.textContent = Number(room.currentQuestion || 1) <= 1 ? 'La primera ronda está por comenzar.' : `La ronda ${room.currentQuestion} está por comenzar.`; });
-  document.querySelectorAll('[data-room-duration-short]').forEach((element) => { element.textContent = `${room.questionDuration}s`; });
+  document.querySelectorAll('[data-room-duration-short]').forEach((element) => { element.textContent = `${currentQuestionDuration(room)}s`; });
   document.querySelectorAll('[data-room-rounds-short]').forEach((element) => { element.textContent = String(room.roundCount); });
-  document.querySelectorAll('[data-room-duration]').forEach((element) => { element.textContent = `${room.questionDuration} SEGUNDOS`; });
+  document.querySelectorAll('[data-room-duration]').forEach((element) => { element.textContent = `${currentQuestionDuration(room)} SEGUNDOS`; });
   document.querySelectorAll('[data-room-rounds]').forEach((element) => { element.textContent = `${room.roundCount} RONDAS`; });
   document.querySelectorAll('[data-room-category]').forEach((element) => { element.textContent = (room.category || 'Todas').toUpperCase(); });
   document.querySelectorAll('[data-room-order]').forEach((element) => { element.textContent = room.randomOrder === false ? 'FIJO' : 'ALEAT.'; });
@@ -148,10 +193,12 @@ async function createRoom() {
   if (!claimed) throw new Error('No se pudo reservar un código único. Inténtalo otra vez.');
   const randomOrder = $('[data-random-order]')?.checked !== false;
   const { categoryId, category } = selectedCategory('[data-category-select]');
-  const questionSet = await pickQuestionsForRoom({ categoryId, roundCount: state.settings.rounds });
+  const { techniqueId, technique } = selectedTechnique('[data-technique-select]');
+  const pressureMode = $('[data-pressure-mode]')?.checked === true;
+  const questionSet = await pickQuestionsForRoom({ categoryId, techniqueId, roundCount: state.settings.rounds });
   const questionOrder = questionSet.map((question) => question.id);
-  const room = { hostUid: user.uid, hostName: nickname, code, status: 'LOBBY', currentQuestion: 0, questionOrder, questionSet, questionText: questionSet[0].text, questionStartedAt: 0, questionDuration: state.settings.duration, roundCount: state.settings.rounds, categoryId, category, randomOrder, createdAt: serverTimestamp(), scoredQuestion: 0 };
-  const player = { nickname, score: 0, connected: true, joinedAt: serverTimestamp(), isHost: true };
+  const room = { hostUid: user.uid, hostName: nickname, code, status: 'LOBBY', currentQuestion: 0, questionOrder, questionSet, questionText: questionSet[0].text, questionStartedAt: 0, questionDuration: state.settings.duration, currentQuestionDuration: state.settings.duration, roundCount: state.settings.rounds, categoryId, category, techniqueId, technique, pressureMode, randomOrder, createdAt: serverTimestamp(), scoredQuestion: 0, roundWinnerUid: '' };
+  const player = { nickname, score: 0, streak: 0, connected: true, joinedAt: serverTimestamp(), isHost: true };
   try {
     await set(ref(database, `rooms/${roomId}`), room);
     await set(ref(database, `roomPlayers/${roomId}/${user.uid}`), player);
@@ -174,7 +221,7 @@ async function joinRoom() {
   if (!roomId) throw new Error('Sala no encontrada o ya cerrada.');
   const room = (await get(ref(database, `rooms/${roomId}`))).val();
   if (!room || room.status !== 'LOBBY') throw new Error('La sala ya comenzó o expiró.');
-  await set(ref(database, `roomPlayers/${roomId}/${user.uid}`), { nickname, score: 0, connected: true, joinedAt: serverTimestamp(), isHost: false });
+  await set(ref(database, `roomPlayers/${roomId}/${user.uid}`), { nickname, score: 0, streak: 0, connected: true, joinedAt: serverTimestamp(), isHost: false });
   await enterSession(roomId, code);
 }
 
@@ -213,6 +260,7 @@ function subscribeRoom(roomId) {
   state.unsubscribers = [];
   stopAnswerListener();
   stopAnswerStatusListener();
+  stopVoteListener();
   state.unsubscribers.push(onValue(ref(database, `rooms/${roomId}`), (snapshot) => {
     state.room = snapshot.val();
     if (!state.room) return window.switchScreen('ui-14');
@@ -231,10 +279,12 @@ function renderState() {
   if (Number(room.currentQuestion || 0) > 0 && state.activeQuestion !== room.currentQuestion) resetLocalQuestionState(room.currentQuestion);
   if (room.status !== 'QUESTION') clearInterval(state.timer);
   if (room.status !== 'COUNTDOWN') clearInterval(state.countdownPaintTimer);
-  if (!['QUESTION', 'QUESTION_RESULTS'].includes(room.status)) {
+  if (!['QUESTION', 'VOTING', 'QUESTION_RESULTS'].includes(room.status)) {
     stopAnswerListener();
     stopAnswerStatusListener();
+    stopVoteListener();
     state.currentAnswers = {};
+    state.votes = {};
   }
   if (room.status === 'LOBBY') {
     clearLocalQuestionState();
@@ -249,16 +299,18 @@ function renderState() {
   if (room.status === 'QUESTION') {
     window.switchScreen('ui-7');
     stopAnswerListener();
+    stopVoteListener();
     listenAnswerStatus();
     loadOwnAnswer(room.currentQuestion).catch((error) => {
       if (state.room?.status === 'QUESTION') showError(error.message);
     });
-    startTimer(room.questionStartedAt, room.questionDuration);
-    if (isHost()) scheduleQuestionClose(room.questionStartedAt, room.questionDuration);
+    startTimer(room.questionStartedAt, currentQuestionDuration(room));
+    if (isHost()) scheduleQuestionClose(room.questionStartedAt, currentQuestionDuration(room));
   }
-  if (room.status === 'QUESTION_RESULTS') { window.switchScreen('ui-10'); stopAnswerStatusListener(); listenAnswers(); }
-  if (room.status === 'LEADERBOARD') { stopAnswerStatusListener(); window.switchScreen('ui-11'); renderLeaderboard(); }
-  if (room.status === 'FINISHED') { stopAnswerStatusListener(); window.switchScreen('ui-11'); }
+  if (room.status === 'VOTING') { window.switchScreen('ui-10'); stopAnswerStatusListener(); listenAnswers(); listenVotes(); scheduleAutoReveal(); setRevealChrome(); }
+  if (room.status === 'QUESTION_RESULTS') { window.switchScreen('ui-10'); stopAnswerStatusListener(); listenAnswers(); listenVotes(); clearTimeout(state.autoRevealTimer); setRevealChrome(); playSound('reveal'); }
+  if (room.status === 'LEADERBOARD') { stopAnswerStatusListener(); stopVoteListener(); window.switchScreen('ui-11'); renderLeaderboard(); }
+  if (room.status === 'FINISHED') { stopAnswerStatusListener(); stopVoteListener(); window.switchScreen('ui-11'); }
 }
 
 async function loadOwnAnswer(question) {
@@ -309,7 +361,17 @@ function startTimer(startedAt, duration) {
   clearInterval(state.timer);
   const tick = () => {
     const remainingMs = Math.max(0, duration * 1000 - (Date.now() + state.serverOffset - startedAt));
-    document.querySelectorAll('[data-timer-number]').forEach((timer) => { timer.textContent = String(Math.ceil(remainingMs / 1000)).padStart(2, '0'); });
+    const remainingSeconds = Math.ceil(remainingMs / 1000);
+    const pct = Math.max(0, Math.min(100, (remainingMs / (duration * 1000)) * 100));
+    document.querySelectorAll('[data-timer-number]').forEach((timer) => {
+      timer.textContent = String(remainingSeconds).padStart(2, '0');
+      timer.classList.toggle('time-critical', remainingSeconds <= 3);
+    });
+    document.querySelectorAll('[data-time-bar]').forEach((bar) => {
+      bar.style.width = `${pct}%`;
+      bar.classList.toggle('time-bar-critical', remainingSeconds <= 3);
+    });
+    if (remainingSeconds <= 3 && remainingSeconds > 0 && remainingMs % 1000 < 240) playSound('tick');
   };
   tick(); state.timer = setInterval(tick, 200);
 }
@@ -318,7 +380,10 @@ function scheduleQuestionClose(startedAt, duration) {
   clearTimeout(state.closeTimer);
   const delay = Math.max(0, startedAt + duration * 1000 - (Date.now() + state.serverOffset));
   state.closeTimer = setTimeout(async () => {
-    if (isHost() && state.room?.status === 'QUESTION') await update(ref(database, `rooms/${state.roomId}`), { status: 'QUESTION_RESULTS' });
+    if (isHost() && state.room?.status === 'QUESTION') {
+      playSound('time');
+      await update(ref(database, `rooms/${state.roomId}`), { status: 'VOTING', votingStartedAt: serverTimestamp() });
+    }
   }, delay + 150);
 }
 
@@ -330,7 +395,13 @@ function scheduleCountdown(startedAt) {
   const paint = () => {
     const remaining = Math.max(0, Math.ceil((finishAt - (Date.now() + state.serverOffset)) / 1000));
     const display = $('#countdown-display');
-    if (display) display.textContent = String(remaining || 1);
+    if (display && display.textContent !== String(remaining || 1)) {
+      display.textContent = String(remaining || 1);
+      display.classList.remove('countdown-pop');
+      void display.offsetWidth;
+      display.classList.add('countdown-pop');
+      playSound('start');
+    }
   };
   paint();
   state.countdownPaintTimer = setInterval(paint, 100);
@@ -340,7 +411,8 @@ function scheduleCountdown(startedAt) {
       if (state.room?.status === 'COUNTDOWN') {
         clearInterval(state.countdownPaintTimer);
         const number = Number(state.room.currentQuestion || 1);
-        await update(ref(database, `rooms/${state.roomId}`), { status: 'QUESTION', questionText: roomQuestionText(state.room, number), questionStartedAt: serverTimestamp() });
+        const duration = effectiveDuration(state.room.questionDuration, number, state.room.pressureMode);
+        await update(ref(database, `rooms/${state.roomId}`), { status: 'QUESTION', questionText: roomQuestionText(state.room, number), currentQuestionDuration: duration, questionStartedAt: serverTimestamp() });
       }
     }, delay + 100);
   }
@@ -349,13 +421,15 @@ function scheduleCountdown(startedAt) {
 async function beginQuestion(number) {
   resetLocalQuestionState(number);
   if (isHost()) await clearRoomAnswers(state.roomId);
-  await update(ref(database, `rooms/${state.roomId}`), { status: 'COUNTDOWN', currentQuestion: number, countdownStartedAt: serverTimestamp() });
+  const duration = effectiveDuration(state.room?.questionDuration, number, state.room?.pressureMode);
+  await update(ref(database, `rooms/${state.roomId}`), { status: 'COUNTDOWN', currentQuestion: number, currentQuestionDuration: duration, countdownStartedAt: serverTimestamp(), roundWinnerUid: '' });
 }
 
 function resetLocalQuestionState(question) {
   state.activeQuestion = question;
   state.ownAnswer = '';
   state.currentAnswers = {};
+  state.votes = {};
   state.loadedAnswerQuestion = null;
   clearAnswerFields();
   renderWaitingStatus();
@@ -365,6 +439,7 @@ function clearLocalQuestionState() {
   state.activeQuestion = null;
   state.ownAnswer = '';
   state.currentAnswers = {};
+  state.votes = {};
   state.loadedAnswerQuestion = null;
   clearAnswerFields();
 }
@@ -403,6 +478,27 @@ async function submitAnswer() {
   }
 }
 
+async function submitVote(targetUid) {
+  if (!targetUid || !state.roomId || !state.uid || state.room?.status !== 'VOTING') return;
+  if (targetUid === state.uid) return showError('No puedes votarte a ti mismo.');
+  if (state.submittingVote) return;
+  state.submittingVote = true;
+  try {
+    await set(ref(database, `roomVotes/${state.roomId}/${state.room.currentQuestion}/${state.uid}`), targetUid);
+    state.votes = { ...(state.votes || {}), [state.uid]: targetUid };
+    renderAnswers(state.currentAnswers || {});
+  } finally {
+    state.submittingVote = false;
+  }
+}
+
+async function revealResults() {
+  if (!isHost()) throw new Error('Solo el host puede revelar resultados.');
+  const winnerUid = roundWinnerUid(state.currentAnswers || {});
+  await update(ref(database, `rooms/${state.roomId}`), { status: 'QUESTION_RESULTS', roundWinnerUid: winnerUid || '' });
+  playSound('reveal');
+}
+
 function listenAnswerStatus() {
   const question = state.room.currentQuestion;
   if (state.answerStatusQuestion === question && state.answerStatusUnsubscribe) return;
@@ -424,6 +520,7 @@ function listenAnswers() {
     state.currentAnswers = answers;
     renderWaitingStatus();
     renderAnswers(answers);
+    renderPersonalAnalysis(answers);
     if (state.room?.status === 'QUESTION_RESULTS' && isHost() && (state.room.scoredQuestion || 0) < question) await scoreAnswers(question, answers);
   }, (error) => showError(error.message));
 }
@@ -440,17 +537,86 @@ function stopAnswerStatusListener() {
   state.answerStatusQuestion = null;
 }
 
+function stopVoteListener() {
+  state.voteUnsubscribe?.();
+  state.voteUnsubscribe = null;
+  state.voteQuestion = null;
+}
+
+function listenVotes() {
+  const question = state.room.currentQuestion;
+  if (state.voteQuestion === question && state.voteUnsubscribe) return;
+  stopVoteListener();
+  state.voteQuestion = question;
+  state.voteUnsubscribe = onValue(ref(database, `roomVotes/${state.roomId}/${question}`), (snapshot) => {
+    state.votes = snapshot.val() || {};
+    renderAnswers(state.currentAnswers || {});
+  }, (error) => showError(error.message));
+}
+
+function voteCounts() {
+  return Object.values(state.votes || {}).reduce((counts, targetUid) => {
+    counts[targetUid] = (counts[targetUid] || 0) + 1;
+    return counts;
+  }, {});
+}
+
+function roundWinnerUid(answers = state.currentAnswers) {
+  const counts = voteCounts();
+  return Object.keys(answers || {}).sort((a, b) => {
+    const voteDiff = (counts[b] || 0) - (counts[a] || 0);
+    if (voteDiff) return voteDiff;
+    const activeQuestion = getCurrentRoomQuestion(state.room);
+    return evaluateAnswer(answers[b]?.answer || '', activeQuestion).score - evaluateAnswer(answers[a]?.answer || '', activeQuestion).score;
+  })[0] || '';
+}
+
+function setRevealChrome() {
+  const voting = state.room?.status === 'VOTING';
+  $('[data-reveal-phase-label]') && ($('[data-reveal-phase-label]').textContent = voting ? 'VOTACIÓN' : 'ANÁLISIS');
+  $('[data-answer-section-title]') && ($('[data-answer-section-title]').textContent = voting ? 'VOTA LA MEJOR RESPUESTA' : 'LO QUE PUSO CADA UNO');
+  $('[data-next-main-label]') && ($('[data-next-main-label]').textContent = voting ? '⚡ REVELAR RESULTADOS' : '⚡ SIGUIENTE SHIT TEST');
+  const winner = state.room?.roundWinnerUid || (!voting ? roundWinnerUid() : '');
+  const winnerBox = $('[data-round-winner]');
+  winnerBox?.classList.toggle('hidden', !winner || voting);
+  if (winner && !voting) {
+    $('[data-round-winner-name]') && ($('[data-round-winner-name]').textContent = state.players[winner]?.nickname || 'Jugador');
+  }
+  const voters = Object.keys(state.votes || {}).length;
+  const players = Object.keys(state.players || {}).length;
+  $('[data-vote-summary]') && ($('[data-vote-summary]').textContent = voting ? `${voters}/${players} VOTOS` : 'ANÁLISIS + VOTOS');
+}
+
+function scheduleAutoReveal() {
+  clearTimeout(state.autoRevealTimer);
+  if (!isHost() || state.room?.status !== 'VOTING') return;
+  const startedAt = Number(state.room.votingStartedAt || Date.now() + state.serverOffset);
+  const delay = Math.max(2500, startedAt + 6500 - (Date.now() + state.serverOffset));
+  state.autoRevealTimer = setTimeout(async () => {
+    if (isHost() && state.room?.status === 'VOTING') await revealResults();
+  }, delay);
+}
+
 async function scoreAnswers(question, answers) {
   if (state.scoring) return;
   state.scoring = true;
   try {
     const activeQuestion = roomQuestion(state.room, question);
+    const counts = voteCounts();
+    const winnerUid = state.room.roundWinnerUid || roundWinnerUid(answers);
     await Promise.all(Object.keys(answers).map((uid) => runTransaction(ref(database, `roomPlayers/${state.roomId}/${uid}`), (player) => {
       if (!player || player.scoredQuestions?.[question]) return undefined;
       const evaluation = evaluateAnswer(answers[uid]?.answer || '', activeQuestion);
-      return { ...player, score: Number(player.score || 0) + evaluation.score, scoredQuestions: { ...(player.scoredQuestions || {}), [question]: true } };
+      const roundPoints = evaluation.score + Number(counts[uid] || 0) * 12 + (uid === winnerUid ? 25 : 0);
+      return {
+        ...player,
+        score: Number(player.score || 0) + roundPoints,
+        streak: uid === winnerUid ? Number(player.streak || 0) + 1 : 0,
+        scoredQuestions: { ...(player.scoredQuestions || {}), [question]: true }
+      };
     })));
-    await update(ref(database, `rooms/${state.roomId}`), { scoredQuestion: question });
+    await update(ref(database, `rooms/${state.roomId}`), { scoredQuestion: question, roundWinnerUid: winnerUid || '' });
+    if (winnerUid) playSound('victory');
   } finally {
     state.scoring = false;
   }
@@ -460,26 +626,65 @@ function renderAnswers(answers) {
   const list = $('[data-answer-list]');
   if (!list) return;
   const activeQuestion = getCurrentRoomQuestion(state.room);
+  const voting = state.room?.status === 'VOTING';
+  const counts = voteCounts();
+  const winner = !voting ? (state.room?.roundWinnerUid || roundWinnerUid(answers)) : '';
+  setRevealChrome();
   list.innerHTML = Object.entries(answers).map(([uid, item]) => {
     const player = state.players[uid] || { nickname: 'Jugador' };
     const evaluation = evaluateAnswer(item.answer, activeQuestion);
+    const voted = state.votes?.[state.uid] === uid;
+    const canVote = voting && uid !== state.uid;
     const scoreColor = evaluation.score >= 82 ? 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10' : evaluation.score >= 65 ? 'text-arena-gold border-arena-gold/40 bg-arena-gold/10' : 'text-arena-orange border-arena-orange/40 bg-arena-orange/10';
-    return `<div class="self-start bg-arena-card border ${player.isHost ? 'border-arena-pink/50' : 'border-arena-orange/40'} rounded-xl p-3 shadow-card">
+    return `<div class="battle-card self-start bg-arena-card border ${winner === uid ? 'winner-card' : (player.isHost ? 'border-arena-pink/50' : 'border-arena-orange/40')} rounded-xl p-3 shadow-card">
       <div class="flex items-center justify-between gap-2 mb-2">
-        <div class="flex min-w-0 items-center gap-2"><span>${player.isHost ? '👑' : '⚡'}</span><span class="text-xs font-bold text-white break-words">${escapeHtml(player.nickname)}</span></div>
-        <span class="shrink-0 rounded-lg border px-2 py-1 text-[10px] font-mono font-black ${scoreColor}">${evaluation.score}%</span>
+        <div class="flex min-w-0 items-center gap-2"><span>${voting ? '🎭' : (player.isHost ? '👑' : '⚡')}</span><span class="text-xs font-bold text-white break-words">${voting ? 'Respuesta anónima' : `${escapeHtml(player.nickname)}${winner === uid ? ' · Ganador' : ''}`}</span></div>
+        <span class="shrink-0 rounded-lg border px-2 py-1 text-[10px] font-mono font-black ${scoreColor}">${voting ? `${counts[uid] || 0} votos` : `${evaluation.score}%`}</span>
       </div>
-      <div class="text-[10px] font-mono text-gray-400">PUSO:</div>
+      <div class="text-[10px] font-mono text-gray-400">${voting ? 'RESPUESTA:' : 'PUSO:'}</div>
       <div class="bg-arena-dark p-2.5 rounded-lg border border-arena-cardborder text-sm italic whitespace-pre-wrap break-words">“${escapeHtml(item.answer)}”</div>
-      <div class="mt-2 rounded-lg border border-arena-cardborder bg-arena-dark/70 p-2 text-[11px] leading-relaxed text-gray-300">
-        <span class="font-mono font-black uppercase ${scoreColor.split(' ')[0]}">${evaluation.label}:</span> ${escapeHtml(evaluation.feedback)}
-      </div>
+      ${voting ? `<button data-vote-target="${uid}" ${canVote ? '' : 'disabled'} class="mt-2 w-full rounded-lg border ${voted ? 'border-arena-gold bg-arena-gold/15 text-arena-gold' : 'border-arena-cardborder bg-arena-dark text-gray-200'} px-3 py-2 text-xs font-black uppercase disabled:opacity-40">${uid === state.uid ? 'Tu respuesta' : (voted ? 'Votada' : 'Votar esta')}</button>` : `
+        <div class="mt-2 grid gap-2 sm:grid-cols-3">
+          <div class="rounded-lg border border-arena-cardborder bg-arena-dark/70 p-2"><div class="text-[9px] font-mono text-gray-500 uppercase">Técnica</div><div class="text-[11px] font-bold text-white">${escapeHtml(evaluation.technique)}</div></div>
+          <div class="rounded-lg border border-arena-cardborder bg-arena-dark/70 p-2"><div class="text-[9px] font-mono text-gray-500 uppercase">Marco</div><div class="text-[11px] font-bold ${evaluation.fellIntoFrame ? 'text-arena-orange' : 'text-emerald-400'}">${escapeHtml(evaluation.frame)}</div></div>
+          <div class="rounded-lg border border-arena-cardborder bg-arena-dark/70 p-2"><div class="text-[9px] font-mono text-gray-500 uppercase">Votos</div><div class="text-[11px] font-bold text-arena-gold">${counts[uid] || 0}</div></div>
+        </div>
+        <div class="mt-2 rounded-lg border border-arena-cardborder bg-arena-dark/70 p-2 text-[11px] leading-relaxed text-gray-300">
+          <span class="font-mono font-black uppercase ${scoreColor.split(' ')[0]}">${evaluation.label}:</span> ${escapeHtml(evaluation.feedback)}
+          <div class="mt-1 text-gray-400"><span class="text-arena-gold">Mejora:</span> ${escapeHtml(evaluation.improvement)}</div>
+        </div>`}
     </div>`;
   }).join('') || '<div class="text-center text-xs text-gray-400">Nadie respondió esta ronda.</div>';
 }
 
+function renderPersonalAnalysis(answers = {}) {
+  const target = $('[data-personal-analysis]');
+  if (!target) return;
+  const own = answers[state.uid]?.answer || state.ownAnswer || '';
+  const activeQuestion = getCurrentRoomQuestion(state.room);
+  const reference = recommendedAnswerForRoom(state.room);
+  if (!own) {
+    target.innerHTML = '<div class="text-[10px] font-mono font-black uppercase tracking-wider text-arena-pink">Tu respuesta vs referencia</div><div class="mt-2 text-xs text-gray-400">Responde la ronda para ver comparación personal.</div>';
+    return;
+  }
+  const evaluation = evaluateAnswer(own, activeQuestion);
+  const references = [reference, ...(Array.isArray(activeQuestion?.referenceAnswers) ? activeQuestion.referenceAnswers : [])].filter(Boolean);
+  target.innerHTML = `
+    <div class="flex items-center justify-between gap-2">
+      <div class="text-[10px] font-mono font-black uppercase tracking-wider text-arena-pink">Tu respuesta vs referencia</div>
+      <span class="rounded-lg border border-arena-pink/40 bg-arena-pink/10 px-2 py-1 text-[10px] font-mono font-black text-arena-pink">${evaluation.score}%</span>
+    </div>
+    <div class="mt-2 grid gap-2 sm:grid-cols-2">
+      <div class="rounded-xl border border-arena-cardborder bg-arena-card p-3"><div class="text-[10px] font-mono uppercase text-gray-500">Tu respuesta</div><div class="mt-1 text-sm text-white whitespace-pre-wrap break-words">“${escapeHtml(own)}”</div></div>
+      <div class="rounded-xl border border-arena-gold/35 bg-arena-gold/10 p-3"><div class="text-[10px] font-mono uppercase text-arena-gold">Referencia</div><div class="mt-1 text-sm text-white whitespace-pre-wrap break-words">${escapeHtml(references[0] || 'Pendiente')}</div></div>
+    </div>
+    <div class="mt-2 text-xs leading-relaxed text-gray-300">${escapeHtml(evaluation.feedback)}</div>
+  `;
+}
+
 async function nextQuestion() {
   if (!isHost()) throw new Error('Esperando al host.');
+  if (state.room?.status === 'VOTING') return revealResults();
   const next = Number(state.room.currentQuestion || 0) + 1;
   if (next > Number(state.room.roundCount || 10)) return update(ref(database, `rooms/${state.roomId}`), { status: 'LEADERBOARD' });
   await beginQuestion(next);
@@ -497,16 +702,23 @@ function renderLeaderboard() {
   $('[data-final-duration]') && ($('[data-final-duration]').textContent = `${duration}s por ronda`);
   target.classList.remove('hidden');
   $('#hist-by-round')?.classList.add('hidden');
-  target.innerHTML = players.sort((a, b) => (b.score || 0) - (a.score || 0)).map((player, index) => `<div class="bg-arena-dark/90 p-3 rounded-xl border border-arena-cardborder flex justify-between"><span class="font-bold">#${index + 1} ${escapeHtml(player.nickname)}</span><span class="font-mono text-arena-gold">${player.score || 0} PTS</span></div>`).join('') || '<div class="bg-arena-dark/90 p-3 rounded-xl border border-arena-cardborder text-center text-gray-400">Sin jugadores registrados.</div>';
+  const rank = (score = 0) => score >= 900 ? 'Leyenda' : score >= 650 ? 'Élite' : score >= 420 ? 'Firme' : score >= 220 ? 'Calibrado' : 'Novato';
+  target.innerHTML = players.sort((a, b) => (b.score || 0) - (a.score || 0)).map((player, index) => `<div class="bg-arena-dark/90 p-3 rounded-xl border border-arena-cardborder flex items-center justify-between gap-3"><div><span class="font-bold">#${index + 1} ${escapeHtml(player.nickname)}</span><div class="mt-1 text-[10px] font-mono text-gray-500">${rank(player.score || 0)} · racha ${player.streak || 0}</div></div><span class="font-mono text-arena-gold">${player.score || 0} PTS</span></div>`).join('') || '<div class="bg-arena-dark/90 p-3 rounded-xl border border-arena-cardborder text-center text-gray-400">Sin jugadores registrados.</div>';
 }
 
 function syncHostSettingsPanel() {
   state.settings.duration = Number(state.room?.questionDuration || state.settings.duration);
   state.settings.rounds = Number(state.room?.roundCount || state.settings.rounds);
+  state.settings.pressureMode = state.room?.pressureMode === true;
+  state.settings.techniqueId = state.room?.techniqueId || '';
   settingPainters['[data-host-duration-options]']?.(state.settings.duration);
   settingPainters['[data-host-round-options]']?.(state.settings.rounds);
   const select = $('[data-host-category-select]');
   if (select) select.value = state.room?.categoryId || '';
+  const techniqueSelect = $('[data-host-technique-select]');
+  if (techniqueSelect) techniqueSelect.value = state.room?.techniqueId || '';
+  const pressure = $('[data-host-pressure-mode]');
+  if (pressure) pressure.checked = state.room?.pressureMode === true;
   $('[data-host-category-summary]') && ($('[data-host-category-summary]').textContent = formatCategoryLabel(select?.selectedOptions?.[0]?.textContent || state.room?.category));
 }
 
@@ -521,17 +733,23 @@ async function saveHostConfig() {
   const roundCount = Number(state.settings.rounds || state.room.roundCount || 10);
   const questionDuration = Number(state.settings.duration || state.room.questionDuration || 10);
   const { categoryId, category } = selectedCategory('[data-host-category-select]');
+  const { techniqueId, technique } = selectedTechnique('[data-host-technique-select]');
+  const pressureMode = $('[data-host-pressure-mode]')?.checked === true;
   const randomOrder = state.room.randomOrder !== false;
-  const questionSet = await pickQuestionsForRoom({ categoryId, roundCount });
+  const questionSet = await pickQuestionsForRoom({ categoryId, techniqueId, roundCount });
   const questionOrder = questionSet.map((question) => question.id);
   await update(ref(database, `rooms/${state.roomId}`), {
     category,
     categoryId,
     currentQuestion: 0,
+    currentQuestionDuration: questionDuration,
     questionDuration,
     questionOrder,
     questionSet,
     questionText: questionSet[0].text,
+    technique,
+    techniqueId,
+    pressureMode,
     randomOrder,
     roundCount,
     scoredQuestion: 0
@@ -545,16 +763,17 @@ async function resetRoom() {
   const scoreReset = {};
   Object.keys(state.players).forEach((uid) => {
     scoreReset[`${uid}/score`] = 0;
+    scoreReset[`${uid}/streak`] = 0;
     scoreReset[`${uid}/scoredQuestions`] = null;
   });
   if (Object.keys(scoreReset).length) await update(ref(database, `roomPlayers/${state.roomId}`), scoreReset);
-  await update(ref(database, `rooms/${state.roomId}`), { status: 'LOBBY', currentQuestion: 0, questionStartedAt: 0, countdownStartedAt: 0, scoredQuestion: 0 });
+  await update(ref(database, `rooms/${state.roomId}`), { status: 'LOBBY', currentQuestion: 0, currentQuestionDuration: state.room.questionDuration, questionStartedAt: 0, countdownStartedAt: 0, scoredQuestion: 0, roundWinnerUid: '' });
 }
 
 async function deleteRoom() {
   if (!isHost()) return;
   const { code } = state.room;
-  await Promise.all([clearRoomAnswers(state.roomId), removeDirectChildren(`roomPlayers/${state.roomId}`)]);
+  await Promise.all([clearRoomAnswers(state.roomId), removeDirectChildren(`roomPlayers/${state.roomId}`), removeAnswerChildren(`roomVotes/${state.roomId}`)]);
   await remove(ref(database, `rooms/${state.roomId}`));
   await remove(ref(database, `roomCodes/${code}`));
   state.roomId = null;
@@ -565,6 +784,7 @@ async function deleteRoom() {
   state.unsubscribers = [];
   stopAnswerListener();
   stopAnswerStatusListener();
+  stopVoteListener();
   window.switchScreen('ui-1');
 }
 
@@ -605,6 +825,12 @@ function bindActions() {
     delegatedActionsBound = true;
     document.addEventListener('click', (event) => {
       if (event.defaultPrevented) return;
+      const voteTarget = event.target.closest?.('[data-vote-target]')?.dataset.voteTarget;
+      if (voteTarget) {
+        event.preventDefault();
+        submitVote(voteTarget).catch((error) => showError(error.message));
+        return;
+      }
       const button = event.target.closest?.('[data-game-action]');
       const handler = button ? actions[button.dataset.gameAction] : null;
       if (!handler) return;
@@ -613,6 +839,13 @@ function bindActions() {
     });
   }
   $('[data-open-host-settings]')?.addEventListener('click', (event) => { event.preventDefault(); openHostSettings(); });
+  document.querySelectorAll('[data-sound-toggle]').forEach((button) => button.addEventListener('click', () => {
+    state.soundEnabled = !state.soundEnabled;
+    localStorage.setItem('arenaSound', state.soundEnabled ? 'on' : 'off');
+    updateSoundButtons();
+    playSound('start');
+  }));
+  updateSoundButtons();
   $('[data-copy-code]')?.addEventListener('click', () => copyText(state.room?.code || '', 'Código copiado').catch((error) => showError(error.message)));
   $('[data-copy-link]')?.addEventListener('click', () => copyText(roomUrl(), 'Link de invitación copiado').catch((error) => showError(error.message)));
   let previewTimer;
@@ -638,6 +871,10 @@ function bindActions() {
   $('[data-host-category-select]')?.addEventListener('change', (event) => {
     $('[data-host-category-summary]') && ($('[data-host-category-summary]').textContent = formatCategoryLabel(event.target.selectedOptions?.[0]?.textContent || event.target.value));
   });
+  $('[data-technique-select]')?.addEventListener('change', (event) => { state.settings.techniqueId = event.target.value; });
+  $('[data-host-technique-select]')?.addEventListener('change', (event) => { state.settings.techniqueId = event.target.value; });
+  $('[data-pressure-mode]')?.addEventListener('change', (event) => { state.settings.pressureMode = event.target.checked; });
+  $('[data-host-pressure-mode]')?.addEventListener('change', (event) => { state.settings.pressureMode = event.target.checked; });
 }
 
 function openCustomDurationModal(currentValue, onApply) {
