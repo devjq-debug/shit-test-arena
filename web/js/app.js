@@ -1,9 +1,10 @@
 import { ensurePlayerUser } from './auth.js?v=4';
 import { fallbackQuestionText, loadGameCategories, loadGameTechniques, pickQuestionsForRoom } from './question-service.js?v=5';
 import { evaluateAnswer, getCurrentRoomQuestion, recommendedAnswerForRoom } from './response-evaluator.js?v=2';
+import { PROFILE_OPTIONS, getPlayerProfile, getProfileAsset, hasCompleteProfile, profileForRoom, randomPlayerProfile, savePlayerProfile, sanitizeProfile } from './player-profile.js?v=1';
 import { database, ref, set, update, get, onValue, onDisconnect, push, remove, runTransaction, serverTimestamp } from './game/realtime.js?v=2';
 
-const state = { uid: null, roomId: null, room: null, players: {}, currentAnswers: {}, votes: {}, ownAnswer: '', activeQuestion: null, loadedAnswerQuestion: null, serverOffset: 0, hasConnectedOnce: false, unsubscribers: [], answerUnsubscribe: null, answerQuestion: null, answerStatusUnsubscribe: null, answerStatusQuestion: null, voteUnsubscribe: null, voteQuestion: null, timer: null, closeTimer: null, countdownTimer: null, countdownPaintTimer: null, autoRevealTimer: null, scoring: false, submittingAnswer: false, submittingVote: false, soundEnabled: localStorage.getItem('arenaSound') === 'on', settings: { duration: 10, rounds: 10, pressureMode: false, techniqueId: '' } };
+const state = { uid: null, roomId: null, room: null, players: {}, currentAnswers: {}, votes: {}, ownAnswer: '', activeQuestion: null, loadedAnswerQuestion: null, serverOffset: 0, hasConnectedOnce: false, unsubscribers: [], answerUnsubscribe: null, answerQuestion: null, answerStatusUnsubscribe: null, answerStatusQuestion: null, voteUnsubscribe: null, voteQuestion: null, timer: null, closeTimer: null, countdownTimer: null, countdownPaintTimer: null, autoRevealTimer: null, scoring: false, submittingAnswer: false, submittingVote: false, soundEnabled: localStorage.getItem('arenaSound') === 'on', profile: getPlayerProfile(), settings: { duration: 10, rounds: 10, pressureMode: false, techniqueId: '' } };
 const settingPainters = {};
 let customDurationApply = null;
 let delegatedActionsBound = false;
@@ -11,6 +12,7 @@ let delegatedActionsBound = false;
 const $ = (selector) => document.querySelector(selector);
 const cleanCode = (value) => value.replace(/\s/g, '').toUpperCase();
 const escapeHtml = (value = '') => value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+const safeCssColor = (value, fallback = '#ff1a75') => /^#[0-9a-f]{6}$/i.test(String(value || '')) ? value : fallback;
 const isHost = () => Boolean(state.room && state.uid === state.room.hostUid);
 const formatCategoryLabel = (value = 'Todas las categorías') => value.replace(/\s*\([^)]*\)/g, '').replace('Todas las categorías', 'Todas').toUpperCase();
 const roomQuestionText = (room, number) => room?.questionSet?.[number - 1]?.text || room?.questions?.[number - 1]?.text || fallbackQuestionText(number - 1);
@@ -121,6 +123,108 @@ function playSound(type) {
   oscillator.stop(context.currentTime + (type === 'victory' ? 0.4 : 0.18));
 }
 
+function selectedProfileDraft() {
+  const selected = (name, fallback) => document.querySelector(`[data-profile-option="${name}"][aria-pressed="true"]`)?.dataset.value || fallback;
+  const reactions = Array.from(document.querySelectorAll('[data-profile-option="reaction"][aria-pressed="true"]')).map((button) => button.dataset.value);
+  return sanitizeProfile({
+    ...state.profile,
+    nickname: $('#profile-nickname')?.value || '',
+    avatar: selected('avatar', state.profile.avatar),
+    color: selected('color', state.profile.color),
+    frame: selected('frame', state.profile.frame),
+    title: selected('title', state.profile.title),
+    effect: selected('effect', state.profile.effect),
+    reactions
+  });
+}
+
+function setProfileDraft(profile) {
+  const safe = sanitizeProfile(profile);
+  if ($('#profile-nickname')) $('#profile-nickname').value = safe.nickname;
+  document.querySelectorAll('[data-profile-option]').forEach((button) => {
+    const option = button.dataset.profileOption;
+    const value = button.dataset.value;
+    const active = option === 'reaction' ? safe.reactions.includes(value) : safe[option] === value;
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+  renderProfilePreview(safe);
+}
+
+function renderProfilePreview(profile = state.profile) {
+  const safe = sanitizeProfile(profile);
+  const assets = getProfileAsset(safe);
+  document.querySelectorAll('[data-profile-preview-name]').forEach((element) => { element.textContent = safe.nickname || 'TU NICKNAME'; });
+  document.querySelectorAll('[data-profile-preview-title]').forEach((element) => { element.textContent = assets.title.label; });
+  document.querySelectorAll('[data-profile-preview-avatar]').forEach((element) => {
+    element.innerHTML = `<img src="${assets.avatar.src}" alt="" class="h-full w-full rounded-xl object-cover"/>`;
+    element.style.borderColor = safe.color;
+  });
+  document.querySelectorAll('[data-profile-preview-reactions]').forEach((element) => {
+    element.innerHTML = assets.reactions.map((reaction) => `<img src="${reaction.src}" alt="${escapeHtml(reaction.label)}" class="h-6 w-6 rounded-md border border-white/10 object-cover"/>`).join('');
+  });
+}
+
+function renderProfileShell(profile = state.profile) {
+  const safe = sanitizeProfile(profile);
+  const assets = getProfileAsset(safe);
+  const name = safe.nickname || 'PERSONALIZAR';
+  document.querySelectorAll('[data-profile-chip-name], [data-profile-summary-name]').forEach((element) => { element.textContent = name; });
+  document.querySelectorAll('[data-profile-summary-title]').forEach((element) => { element.textContent = assets.title.label; });
+  document.querySelectorAll('[data-profile-chip-img], [data-profile-summary-img]').forEach((image) => {
+    image.src = assets.avatar.src;
+    image.alt = safe.nickname ? `Avatar de ${safe.nickname}` : 'Avatar del jugador';
+  });
+  document.querySelectorAll('[data-profile-chip-avatar], [data-profile-summary-avatar]').forEach((element) => { element.style.borderColor = safe.color; });
+  document.querySelectorAll('[data-profile-status-copy]').forEach((element) => {
+    element.textContent = safe.nickname ? 'Identidad lista para crear o unirse.' : 'Configura tu nickname antes de jugar.';
+  });
+  ['#host-nick', '#join-nick'].forEach((selector) => {
+    const input = $(selector);
+    if (input) input.value = safe.nickname;
+  });
+  renderProfilePreview(safe);
+}
+
+function renderProfileOptions() {
+  const renderButtons = (selector, html) => {
+    const container = $(selector);
+    if (container) container.innerHTML = html;
+  };
+  renderButtons('[data-avatar-options]', PROFILE_OPTIONS.avatars.map((avatar) => `<button type="button" data-profile-option="avatar" data-value="${avatar.id}" aria-pressed="false" class="profile-option rounded-xl border border-arena-cardborder bg-arena-dark p-1.5 transition"><img src="${avatar.src}" alt="${escapeHtml(avatar.label)}" class="h-12 w-full rounded-lg object-cover"/></button>`).join(''));
+  renderButtons('[data-color-options]', PROFILE_OPTIONS.colors.map((color) => `<button type="button" data-profile-option="color" data-value="${color}" aria-pressed="false" class="profile-option h-9 rounded-xl border border-arena-cardborder transition" style="background:${color}"></button>`).join(''));
+  renderButtons('[data-frame-options]', PROFILE_OPTIONS.frames.map((frame) => `<button type="button" data-profile-option="frame" data-value="${frame.id}" aria-pressed="false" class="profile-option rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-[10px] font-mono font-bold uppercase text-gray-300 transition">${escapeHtml(frame.label)}</button>`).join(''));
+  renderButtons('[data-title-options]', PROFILE_OPTIONS.titles.map((title) => `<button type="button" data-profile-option="title" data-value="${title.id}" aria-pressed="false" class="profile-option flex items-center gap-2 rounded-xl border border-arena-cardborder bg-arena-dark px-2 py-2 text-left transition"><img src="${title.badge}" alt="" class="h-7 w-7 rounded-md object-cover"/><span class="text-[10px] font-mono font-bold uppercase text-gray-200">${escapeHtml(title.label)}</span></button>`).join(''));
+  renderButtons('[data-effect-options]', PROFILE_OPTIONS.effects.map((effect) => `<button type="button" data-profile-option="effect" data-value="${effect.id}" aria-pressed="false" class="profile-option rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2 text-[10px] font-mono font-bold uppercase text-gray-300 transition">${escapeHtml(effect.label)}</button>`).join(''));
+  renderButtons('[data-reaction-options]', PROFILE_OPTIONS.reactions.map((reaction) => `<button type="button" data-profile-option="reaction" data-value="${reaction.id}" aria-pressed="false" class="profile-option rounded-xl border border-arena-cardborder bg-arena-dark p-1.5 transition"><img src="${reaction.src}" alt="${escapeHtml(reaction.label)}" class="h-9 w-full rounded-lg object-cover"/></button>`).join(''));
+  setProfileDraft(state.profile);
+}
+
+function openProfileModal({ requireNickname = false } = {}) {
+  const modal = $('#player-profile-modal');
+  if (!modal) return;
+  modal.dataset.requireNickname = requireNickname ? 'true' : 'false';
+  setProfileDraft(state.profile);
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  $('#profile-nickname')?.focus();
+}
+
+function closeProfileModal() {
+  const modal = $('#player-profile-modal');
+  modal?.classList.add('hidden');
+  modal?.classList.remove('flex');
+}
+
+function ensureCompleteProfile() {
+  state.profile = getPlayerProfile();
+  if (hasCompleteProfile(state.profile)) {
+    renderProfileShell(state.profile);
+    return true;
+  }
+  openProfileModal({ requireNickname: true });
+  return false;
+}
+
 async function removeDirectChildren(path) {
   const snapshot = await get(ref(database, path));
   const value = snapshot.val();
@@ -180,9 +284,11 @@ async function claimRoomCode(code, roomId, hostUid) {
 }
 
 async function createRoom() {
+  if (!ensureCompleteProfile()) return;
   const user = await ensureUser(true);
-  const nickname = ($('#host-nick')?.value || '').trim();
-  if (!nickname) throw new Error('Escribe un nickname antes de crear la sala.');
+  const profile = profileForRoom(state.profile);
+  const nickname = profile.nickname;
+  if (!nickname) throw new Error('Configura tu jugador antes de crear la sala.');
   const roomId = push(ref(database, 'rooms')).key;
   let code = '';
   let claimed = false;
@@ -198,7 +304,7 @@ async function createRoom() {
   const questionSet = await pickQuestionsForRoom({ categoryId, techniqueId, roundCount: state.settings.rounds });
   const questionOrder = questionSet.map((question) => question.id);
   const room = { hostUid: user.uid, hostName: nickname, code, status: 'LOBBY', currentQuestion: 0, questionOrder, questionSet, questionText: questionSet[0].text, questionStartedAt: 0, questionDuration: state.settings.duration, currentQuestionDuration: state.settings.duration, roundCount: state.settings.rounds, categoryId, category, techniqueId, technique, pressureMode, randomOrder, createdAt: serverTimestamp(), scoredQuestion: 0, roundWinnerUid: '' };
-  const player = { nickname, score: 0, streak: 0, connected: true, joinedAt: serverTimestamp(), isHost: true };
+  const player = { ...profile, nickname, score: 0, streak: 0, connected: true, joinedAt: serverTimestamp(), isHost: true };
   try {
     await set(ref(database, `rooms/${roomId}`), room);
     await set(ref(database, `roomPlayers/${roomId}/${user.uid}`), player);
@@ -212,16 +318,18 @@ async function createRoom() {
 }
 
 async function joinRoom() {
+  if (!ensureCompleteProfile()) return;
   const user = await ensureUser(true);
   const code = cleanCode($('#join-code')?.value || '');
-  const nickname = ($('#join-nick')?.value || '').trim();
-  if (code.length !== 5 || !nickname) throw new Error('Introduce un código válido y tu nickname.');
+  const profile = profileForRoom(state.profile);
+  const nickname = profile.nickname;
+  if (code.length !== 5 || !nickname) throw new Error('Introduce un código válido y configura tu jugador.');
   const codeSnapshot = await get(ref(database, `roomCodes/${code}`));
   const roomId = codeSnapshot.val()?.roomId;
   if (!roomId) throw new Error('Sala no encontrada o ya cerrada.');
   const room = (await get(ref(database, `rooms/${roomId}`))).val();
   if (!room || room.status !== 'LOBBY') throw new Error('La sala ya comenzó o expiró.');
-  await set(ref(database, `roomPlayers/${roomId}/${user.uid}`), { nickname, score: 0, streak: 0, connected: true, joinedAt: serverTimestamp(), isHost: false });
+  await set(ref(database, `roomPlayers/${roomId}/${user.uid}`), { ...profile, nickname, score: 0, streak: 0, connected: true, joinedAt: serverTimestamp(), isHost: false });
   await enterSession(roomId, code);
 }
 
@@ -336,7 +444,12 @@ function renderPlayers() {
   document.querySelectorAll('[data-host-name]').forEach((element) => { element.textContent = hostPlayer?.nickname || state.room?.hostName || 'Host'; });
   document.querySelectorAll('[data-player-count]').forEach((element) => { element.textContent = `(${players.length}/8)`; });
   document.querySelectorAll('[data-player-list]').forEach((list) => {
-    list.innerHTML = players.map(([uid, player]) => `<div class="bg-arena-dark/80 p-2.5 rounded-xl border ${player.isHost ? 'border-arena-pink/40' : 'border-arena-cardborder'} flex items-center justify-between"><div class="flex items-center gap-2.5"><span class="w-8 h-8 rounded-lg bg-arena-pink/15 text-arena-pink flex items-center justify-center">${player.isHost ? '👑' : '⚡'}</span><div><div class="text-xs font-bold text-white">${escapeHtml(player.nickname)}${uid === state.uid ? ' (Tú)' : ''}</div><div class="text-[10px] font-mono text-gray-400">${player.score || 0} PTS</div></div></div><span class="text-[9px] font-mono ${player.connected ? 'text-emerald-400' : 'text-gray-500'}">${player.connected ? '✓ LISTO' : 'AUSENTE'}</span></div>`).join('') || '<div class="rounded-xl border border-arena-cardborder bg-arena-dark/70 p-3 text-center text-xs text-gray-400">Esperando jugadores...</div>';
+    list.innerHTML = players.map(([uid, player]) => {
+      const avatar = player.avatarUrl ? `<img src="${escapeHtml(player.avatarUrl)}" alt="" class="h-full w-full rounded-lg object-cover"/>` : (player.isHost ? '👑' : '⚡');
+      const accent = safeCssColor(player.color, player.isHost ? '#ff1a75' : '#f97316');
+      const title = player.titleLabel ? `<span class="text-[9px] font-mono uppercase text-gray-500">${escapeHtml(player.titleLabel)} · </span>` : '';
+      return `<div class="bg-arena-dark/80 p-2.5 rounded-xl border ${player.isHost ? 'border-arena-pink/40' : 'border-arena-cardborder'} flex items-center justify-between"><div class="flex items-center gap-2.5"><span class="w-8 h-8 rounded-lg bg-arena-pink/15 text-arena-pink flex items-center justify-center overflow-hidden border" style="border-color:${accent}">${avatar}</span><div><div class="text-xs font-bold text-white">${escapeHtml(player.nickname)}${uid === state.uid ? ' (Tú)' : ''}</div><div class="text-[10px] font-mono text-gray-400">${title}${player.score || 0} PTS</div></div></div><span class="text-[9px] font-mono ${player.connected ? 'text-emerald-400' : 'text-gray-500'}">${player.connected ? '✓ LISTO' : 'AUSENTE'}</span></div>`;
+    }).join('') || '<div class="rounded-xl border border-arena-cardborder bg-arena-dark/70 p-3 text-center text-xs text-gray-400">Esperando jugadores...</div>';
   });
   renderWaitingStatus();
 }
@@ -803,6 +916,60 @@ function bindGameAction(action, handler) {
   });
 }
 
+function bindProfileUi() {
+  renderProfileOptions();
+  renderProfileShell(state.profile);
+  document.querySelectorAll('[data-profile-open]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      openProfileModal();
+    });
+  });
+  document.querySelectorAll('[data-profile-gate]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      if (!ensureCompleteProfile()) return;
+      window.switchScreen(button.dataset.profileGate);
+    });
+  });
+  $('#profile-nickname')?.addEventListener('input', () => renderProfilePreview(selectedProfileDraft()));
+  $('#player-profile-modal')?.addEventListener('click', (event) => {
+    if (event.target.id === 'player-profile-modal' && event.currentTarget.dataset.requireNickname !== 'true') closeProfileModal();
+    const option = event.target.closest?.('[data-profile-option]');
+    if (!option) return;
+    event.preventDefault();
+    if (option.dataset.profileOption === 'reaction') {
+      const activeCount = document.querySelectorAll('[data-profile-option="reaction"][aria-pressed="true"]').length;
+      const next = option.getAttribute('aria-pressed') !== 'true';
+      if (next && activeCount >= 3) return showError('Puedes equipar hasta 3 reacciones rápidas.');
+      option.setAttribute('aria-pressed', next ? 'true' : 'false');
+    } else {
+      document.querySelectorAll(`[data-profile-option="${option.dataset.profileOption}"]`).forEach((button) => button.setAttribute('aria-pressed', 'false'));
+      option.setAttribute('aria-pressed', 'true');
+    }
+    renderProfilePreview(selectedProfileDraft());
+  });
+  $('[data-profile-close]')?.addEventListener('click', () => {
+    if ($('#player-profile-modal')?.dataset.requireNickname === 'true' && !hasCompleteProfile(selectedProfileDraft())) {
+      return showError('Guarda un nickname para continuar.');
+    }
+    closeProfileModal();
+  });
+  $('[data-profile-random]')?.addEventListener('click', () => setProfileDraft(randomPlayerProfile(selectedProfileDraft())));
+  $('[data-player-profile-form]')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const next = selectedProfileDraft();
+    if (!hasCompleteProfile(next)) return showError('Escribe tu nickname para jugar.');
+    state.profile = savePlayerProfile(next);
+    renderProfileShell(state.profile);
+    closeProfileModal();
+  });
+  window.addEventListener('arena-profile-updated', (event) => {
+    state.profile = event.detail || getPlayerProfile();
+    renderProfileShell(state.profile);
+  });
+}
+
 function bindActions() {
   const editAnswer = async () => {
     if (state.room?.status !== 'QUESTION') throw new Error('La ronda ya terminó.');
@@ -829,6 +996,13 @@ function bindActions() {
       if (voteTarget) {
         event.preventDefault();
         submitVote(voteTarget).catch((error) => showError(error.message));
+        return;
+      }
+      const gateTarget = event.target.closest?.('[data-profile-gate]');
+      if (gateTarget) {
+        event.preventDefault();
+        if (!ensureCompleteProfile()) return;
+        window.switchScreen(gateTarget.dataset.profileGate);
         return;
       }
       const button = event.target.closest?.('[data-game-action]');
@@ -954,10 +1128,12 @@ window.addEventListener('DOMContentLoaded', async () => {
   localStorage.removeItem('arenaSession');
   retireLegacyAppCache().catch(() => {});
   bindActions();
-  ['#host-nick', '#join-nick', '#join-code'].forEach((selector) => {
+  bindProfileUi();
+  ['#join-code'].forEach((selector) => {
     const input = $(selector);
     if (input) input.value = '';
   });
+  renderProfileShell(state.profile);
   await ensureUser();
   await populateCategorySelectors();
   const routeCode = cleanCode(window.location.pathname.match(/^\/room\/([^/]+)/)?.[1] || '');

@@ -120,6 +120,42 @@
       box-shadow: 0 0 22px rgba(255, 26, 117, 0.16);
     }
 
+    .profile-option {
+      position: relative;
+    }
+
+    .profile-option[aria-pressed="true"] {
+      border-color: rgba(255, 26, 117, 0.9);
+      box-shadow: 0 0 18px rgba(255, 26, 117, 0.28);
+      transform: translateY(-1px);
+    }
+
+    .profile-option[aria-pressed="true"]::after {
+      content: '✓';
+      position: absolute;
+      right: 6px;
+      top: 5px;
+      display: grid;
+      place-items: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #ff1a75, #f97316);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 900;
+    }
+
+    .profile-chip {
+      transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    .profile-chip:hover {
+      border-color: rgba(255, 26, 117, 0.75);
+      transform: translateY(-1px);
+      box-shadow: 0 0 18px rgba(255, 26, 117, 0.16);
+    }
+
     .winner-card {
       border-color: rgba(251, 191, 36, 0.8) !important;
       box-shadow: 0 0 30px rgba(251, 191, 36, 0.18);
@@ -288,9 +324,20 @@
             <div class="text-[9px] font-mono tracking-widest text-arena-muted uppercase">Social Response Training</div>
           </div>
         </div>
-        <div class="live-badge inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono font-semibold">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          LIVE MULTIPLAYER
+        <div class="flex flex-col items-end gap-2">
+          <div class="live-badge inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono font-semibold">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            LIVE MULTIPLAYER
+          </div>
+          <button type="button" data-profile-open class="profile-chip inline-flex max-w-[190px] items-center gap-2 rounded-xl border border-arena-cardborder bg-arena-card/80 px-2 py-1.5 text-left">
+            <span data-profile-chip-avatar class="h-8 w-8 shrink-0 overflow-hidden rounded-lg border border-arena-pink bg-arena-dark">
+              <img data-profile-chip-img src="/assets/player/avatars/avatar_01.png" alt="Avatar del jugador" class="h-full w-full object-cover"/>
+            </span>
+            <span class="min-w-0">
+              <span data-profile-chip-name class="block truncate text-[11px] font-black uppercase tracking-wide text-white">PERSONALIZAR</span>
+              <span class="block text-[9px] font-mono font-bold uppercase tracking-widest text-arena-pink">Personalizar →</span>
+            </span>
+          </button>
         </div>
       </header>
 
@@ -316,12 +363,12 @@
 
         <!-- ACCIONES PRINCIPALES (DOMINANTE CREAR SALA) -->
         <div class="w-full space-y-3">
-          <button onclick="switchScreen('ui-2')" class="w-full gradient-btn text-white py-3.5 px-6 rounded-xl font-black text-sm tracking-wider uppercase shadow-glow-pink flex items-center justify-center gap-2 group">
+          <button data-profile-gate="ui-2" class="w-full gradient-btn text-white py-3.5 px-6 rounded-xl font-black text-sm tracking-wider uppercase shadow-glow-pink flex items-center justify-center gap-2 group">
             <span>⚡ CREAR SALA</span>
             <span class="text-xs transition-transform group-hover:translate-x-1">→</span>
           </button>
           
-          <button onclick="switchScreen('ui-3')" class="w-full bg-arena-card hover:bg-arena-cardborder text-gray-200 border border-arena-cardborder py-3 px-6 rounded-xl font-bold text-sm tracking-wide transition flex items-center justify-center gap-2">
+          <button data-profile-gate="ui-3" class="w-full bg-arena-card hover:bg-arena-cardborder text-gray-200 border border-arena-cardborder py-3 px-6 rounded-xl font-bold text-sm tracking-wide transition flex items-center justify-center gap-2">
             <span>ENTRAR A UNA SALA</span>
           </button>
         </div>
@@ -384,13 +431,23 @@
           <p class="text-xs text-gray-400">Configura la arena antes de invitar a los demás.</p>
         </div>
 
-        <!-- CAMPO NICKNAME -->
-        <div>
-          <label class="block text-[10px] font-mono uppercase tracking-wider text-gray-300 font-bold mb-1.5">TU NICKNAME (SIN CUENTA)</label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 font-mono text-xs">👑</span>
-            <input type="text" id="host-nick" maxlength="20" autocomplete="off" class="w-full bg-arena-dark border border-arena-cardborder focus:border-arena-pink focus:ring-1 focus:ring-arena-pink rounded-xl pl-8 pr-3 py-2.5 text-sm text-white font-medium placeholder-gray-500 transition"/>
+        <!-- IDENTIDAD CENTRALIZADA -->
+        <div class="rounded-xl border border-arena-cardborder bg-arena-dark/80 p-3">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex min-w-0 items-center gap-2.5">
+              <span data-profile-summary-avatar class="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-arena-pink bg-arena-card">
+                <img data-profile-summary-img src="/assets/player/avatars/avatar_01.png" alt="Avatar del jugador" class="h-full w-full object-cover"/>
+              </span>
+              <div class="min-w-0">
+                <div class="text-[9px] font-mono font-bold uppercase tracking-widest text-gray-500">Tu identidad</div>
+                <div data-profile-summary-name class="truncate text-sm font-black uppercase text-white">PERSONALIZAR</div>
+                <div data-profile-summary-title class="text-[10px] font-mono uppercase text-arena-pink">Novato</div>
+              </div>
+            </div>
+            <button type="button" data-profile-open class="rounded-lg border border-arena-cardborder bg-arena-card px-3 py-2 text-[10px] font-mono font-black uppercase text-arena-pink">Editar</button>
           </div>
+          <p data-profile-status-copy class="mt-2 text-[10px] font-mono text-arena-muted">Configura tu nickname antes de jugar.</p>
+          <input type="hidden" id="host-nick"/>
         </div>
 
         <!-- TIEMPO POR RESPUESTA -->
@@ -525,10 +582,23 @@
           </div>
         </div>
 
-        <!-- CAMPO TU NICKNAME -->
-        <div>
-          <label class="block text-[10px] font-mono uppercase tracking-wider text-gray-300 font-bold mb-1.5">TU NICKNAME</label>
-          <input type="text" id="join-nick" maxlength="20" autocomplete="off" class="w-full bg-arena-dark border border-arena-cardborder focus:border-arena-pink focus:ring-1 focus:ring-arena-pink rounded-xl px-4 py-2.5 text-sm text-white font-medium placeholder-gray-500 transition"/>
+        <!-- IDENTIDAD CENTRALIZADA -->
+        <div class="rounded-xl border border-arena-cardborder bg-arena-dark/80 p-3">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex min-w-0 items-center gap-2.5">
+              <span data-profile-summary-avatar class="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-arena-pink bg-arena-card">
+                <img data-profile-summary-img src="/assets/player/avatars/avatar_01.png" alt="Avatar del jugador" class="h-full w-full object-cover"/>
+              </span>
+              <div class="min-w-0">
+                <div class="text-[9px] font-mono font-bold uppercase tracking-widest text-gray-500">Entrar como</div>
+                <div data-profile-summary-name class="truncate text-sm font-black uppercase text-white">PERSONALIZAR</div>
+                <div data-profile-summary-title class="text-[10px] font-mono uppercase text-arena-pink">Novato</div>
+              </div>
+            </div>
+            <button type="button" data-profile-open class="rounded-lg border border-arena-cardborder bg-arena-card px-3 py-2 text-[10px] font-mono font-black uppercase text-arena-pink">Editar</button>
+          </div>
+          <p data-profile-status-copy class="mt-2 text-[10px] font-mono text-arena-muted">Configura tu nickname antes de jugar.</p>
+          <input type="hidden" id="join-nick"/>
         </div>
 
         <!-- ESTADO VÁLIDO ENCONTRADO -->
@@ -1477,6 +1547,70 @@ void main() {
       requestAnimationFrame(render);
     })();
   </script>
+  <div id="player-profile-modal" class="fixed inset-0 z-50 hidden items-center justify-center overflow-y-auto bg-black/75 px-4 py-6">
+    <form data-player-profile-form class="w-full max-w-2xl rounded-2xl border border-arena-cardborder bg-arena-card p-4 shadow-2xl sm:p-5">
+      <div class="mb-4 flex items-start justify-between gap-3 border-b border-arena-cardborder/70 pb-3">
+        <div>
+          <div class="font-mono text-[10px] font-black uppercase tracking-widest text-arena-pink">Perfil de gladiador</div>
+          <h2 class="mt-1 text-xl font-black uppercase text-white">Personalizar jugador</h2>
+          <p class="mt-1 text-xs text-gray-400">Esta identidad se usará automáticamente al crear o entrar a salas.</p>
+        </div>
+        <button type="button" data-profile-close class="rounded-lg border border-arena-cardborder bg-arena-dark px-3 py-2 text-[10px] font-mono font-black uppercase text-gray-300">Cerrar</button>
+      </div>
+
+      <div class="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
+        <section class="rounded-2xl border border-arena-cardborder bg-arena-dark/80 p-4">
+          <div class="text-[10px] font-mono font-bold uppercase tracking-widest text-arena-orange">Vista previa</div>
+          <div class="mt-4 flex flex-col items-center text-center">
+            <span data-profile-preview-avatar class="h-24 w-24 overflow-hidden rounded-2xl border-2 border-arena-pink bg-arena-card shadow-glow-pink"></span>
+            <div data-profile-preview-name class="mt-3 max-w-full truncate text-xl font-black uppercase text-white">TU NICKNAME</div>
+            <div data-profile-preview-title class="mt-1 rounded-full border border-arena-pink/40 bg-arena-pink/10 px-3 py-1 text-[10px] font-mono font-black uppercase tracking-widest text-arena-pink">Novato</div>
+            <div data-profile-preview-reactions class="mt-4 flex justify-center gap-2"></div>
+          </div>
+        </section>
+
+        <section class="space-y-3">
+          <div>
+            <label class="mb-1.5 block text-[10px] font-mono font-bold uppercase tracking-widest text-gray-300">Nickname</label>
+            <input id="profile-nickname" maxlength="20" autocomplete="off" class="w-full rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-2.5 text-sm font-bold text-white focus:border-arena-pink focus:ring-arena-pink" placeholder="Escribe tu nombre"/>
+          </div>
+          <div>
+            <div class="mb-1.5 text-[10px] font-mono font-bold uppercase tracking-widest text-gray-300">Avatar</div>
+            <div data-avatar-options class="grid grid-cols-6 gap-1.5"></div>
+          </div>
+          <div>
+            <div class="mb-1.5 text-[10px] font-mono font-bold uppercase tracking-widest text-gray-300">Color identificador</div>
+            <div data-color-options class="grid grid-cols-6 gap-1.5"></div>
+          </div>
+          <div>
+            <div class="mb-1.5 text-[10px] font-mono font-bold uppercase tracking-widest text-gray-300">Marco</div>
+            <div data-frame-options class="grid grid-cols-2 gap-1.5"></div>
+          </div>
+          <div>
+            <div class="mb-1.5 text-[10px] font-mono font-bold uppercase tracking-widest text-gray-300">Título equipado</div>
+            <div data-title-options class="grid grid-cols-2 gap-1.5"></div>
+          </div>
+          <div>
+            <div class="mb-1.5 text-[10px] font-mono font-bold uppercase tracking-widest text-gray-300">Efecto de entrada</div>
+            <div data-effect-options class="grid grid-cols-2 gap-1.5"></div>
+          </div>
+          <div>
+            <div class="mb-1.5 flex items-center justify-between text-[10px] font-mono font-bold uppercase tracking-widest text-gray-300">
+              <span>Reacciones rápidas</span>
+              <span class="text-gray-500">máx. 3</span>
+            </div>
+            <div data-reaction-options class="grid grid-cols-4 gap-1.5"></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="mt-4 grid grid-cols-2 gap-2">
+        <button type="button" data-profile-random class="rounded-xl border border-arena-cardborder bg-arena-dark px-3 py-3 text-xs font-black uppercase text-gray-200">Aleatorio</button>
+        <button class="gradient-btn rounded-xl px-3 py-3 text-xs font-black uppercase text-white shadow-glow-pink">Guardar</button>
+      </div>
+    </form>
+  </div>
+
   <div id="custom-duration-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 px-4">
     <form data-custom-duration-form class="w-full max-w-sm rounded-2xl border border-arena-cardborder bg-arena-card p-5 shadow-2xl">
       <div class="font-mono text-[10px] font-bold uppercase tracking-widest text-arena-pink">Tiempo personalizado</div>
@@ -1490,6 +1624,6 @@ void main() {
     </form>
   </div>
 
-  <script type="module" src="/js/app.js?v=26"></script>
+  <script type="module" src="/js/app.js?v=27"></script>
 </body>
 </html>
