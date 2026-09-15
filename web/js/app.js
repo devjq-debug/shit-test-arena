@@ -1,6 +1,6 @@
 import { ensurePlayerUser } from './auth.js?v=4';
 import { fallbackQuestionText, loadGameCategories, loadGameTechniques, pickQuestionsForRoom } from './question-service.js?v=5';
-import { evaluateAnswer, getCurrentRoomQuestion, recommendedAnswerForRoom } from './response-evaluator.js?v=2';
+import { evaluateAnswer, getCurrentRoomQuestion, recommendedAnswerForRoom } from './response-evaluator.js?v=3';
 import { PROFILE_OPTIONS, getPlayerProfile, getProfileAsset, hasCompleteProfile, profileForRoom, randomPlayerProfile, savePlayerProfile, sanitizeProfile } from './player-profile.js?v=1';
 import { getAudioSettings, playArenaSound, setAudioScene, startAudio, updateAudioSettings } from './audio-manager.js?v=1';
 import { hideArenaEvent, initArenaVisuals, renderCharacterStages, renderFinalPodium, setArenaScene, showPunishedSequence, showWinnerSequence } from './arena-visuals.js?v=1';
@@ -763,8 +763,16 @@ function renderAnswers(answers) {
           <div class="rounded-lg border border-arena-cardborder bg-arena-dark/70 p-2"><div class="text-[9px] font-mono text-gray-500 uppercase">Marco</div><div class="text-[11px] font-bold ${evaluation.fellIntoFrame ? 'text-arena-orange' : 'text-emerald-400'}">${escapeHtml(evaluation.frame)}</div></div>
           <div class="rounded-lg border border-arena-cardborder bg-arena-dark/70 p-2"><div class="text-[9px] font-mono text-gray-500 uppercase">Votos</div><div class="text-[11px] font-bold text-arena-gold">${counts[uid] || 0}</div></div>
         </div>
+        <div class="mt-2 grid gap-2 sm:grid-cols-4">
+          <div class="rounded-lg border border-arena-cardborder bg-black/25 p-2"><div class="text-[8px] font-mono text-gray-500 uppercase">Marco</div><div class="text-[11px] font-black text-white">${evaluation.frameControl}%</div></div>
+          <div class="rounded-lg border border-arena-cardborder bg-black/25 p-2"><div class="text-[8px] font-mono text-gray-500 uppercase">Técnica</div><div class="text-[11px] font-black text-white">${evaluation.techniqueFit}%</div></div>
+          <div class="rounded-lg border border-arena-cardborder bg-black/25 p-2"><div class="text-[8px] font-mono text-gray-500 uppercase">Natural</div><div class="text-[11px] font-black text-white">${evaluation.naturality}%</div></div>
+          <div class="rounded-lg border border-arena-cardborder bg-black/25 p-2"><div class="text-[8px] font-mono text-gray-500 uppercase">Calibr.</div><div class="text-[11px] font-black text-white">${evaluation.calibration}%</div></div>
+        </div>
         <div class="mt-2 rounded-lg border border-arena-cardborder bg-arena-dark/70 p-2 text-[11px] leading-relaxed text-gray-300">
           <span class="font-mono font-black uppercase ${scoreColor.split(' ')[0]}">${evaluation.label}:</span> ${escapeHtml(evaluation.feedback)}
+          <div class="mt-1 text-emerald-300">${escapeHtml(evaluation.whatWorked)}</div>
+          <div class="mt-1 text-arena-orange">${escapeHtml(evaluation.whatFailed)}</div>
           <div class="mt-1 text-gray-400"><span class="text-arena-gold">Mejora:</span> ${escapeHtml(evaluation.improvement)}</div>
         </div>`}
     </div>`;
@@ -796,7 +804,18 @@ function renderPersonalAnalysis(answers = {}) {
       <div class="rounded-xl border border-arena-cardborder bg-arena-card p-3"><div class="text-[10px] font-mono uppercase text-gray-500">Tu respuesta</div><div class="mt-1 text-sm text-white whitespace-pre-wrap break-words">“${escapeHtml(own)}”</div></div>
       <div class="rounded-xl border border-arena-gold/35 bg-arena-gold/10 p-3"><div class="text-[10px] font-mono uppercase text-arena-gold">Referencia</div><div class="mt-1 text-sm text-white whitespace-pre-wrap break-words">${escapeHtml(references[0] || 'Pendiente')}</div></div>
     </div>
-    <div class="mt-2 text-xs leading-relaxed text-gray-300">${escapeHtml(evaluation.feedback)}</div>
+    <div class="mt-2 grid gap-2 sm:grid-cols-4">
+      <div class="rounded-lg border border-arena-cardborder bg-black/25 p-2"><div class="text-[8px] font-mono text-gray-500 uppercase">Marco</div><div class="text-[11px] font-black text-white">${evaluation.frameControl}%</div></div>
+      <div class="rounded-lg border border-arena-cardborder bg-black/25 p-2"><div class="text-[8px] font-mono text-gray-500 uppercase">Técnica</div><div class="text-[11px] font-black text-white">${evaluation.techniqueFit}%</div></div>
+      <div class="rounded-lg border border-arena-cardborder bg-black/25 p-2"><div class="text-[8px] font-mono text-gray-500 uppercase">Natural</div><div class="text-[11px] font-black text-white">${evaluation.naturality}%</div></div>
+      <div class="rounded-lg border border-arena-cardborder bg-black/25 p-2"><div class="text-[8px] font-mono text-gray-500 uppercase">Calibr.</div><div class="text-[11px] font-black text-white">${evaluation.calibration}%</div></div>
+    </div>
+    <div class="mt-2 rounded-xl border border-arena-cardborder bg-arena-card/70 p-3 text-xs leading-relaxed text-gray-300">
+      <div>${escapeHtml(evaluation.feedback)}</div>
+      <div class="mt-2 text-emerald-300">${escapeHtml(evaluation.whatWorked)}</div>
+      <div class="mt-1 text-arena-orange">${escapeHtml(evaluation.whatFailed)}</div>
+      <div class="mt-1 text-gray-400"><span class="text-arena-gold">Cómo mejorar:</span> ${escapeHtml(evaluation.improvement)}</div>
+    </div>
   `;
 }
 
