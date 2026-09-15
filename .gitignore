@@ -8,3 +8,5 @@ npm-debug.log*
 .references/
 .firebase/
 tmp-visual-checks/
+.asset-pack-extract/
+.mockups-review/
