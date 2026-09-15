@@ -2,6 +2,8 @@ import { ensurePlayerUser } from './auth.js?v=4';
 import { fallbackQuestionText, loadGameCategories, loadGameTechniques, pickQuestionsForRoom } from './question-service.js?v=5';
 import { evaluateAnswer, getCurrentRoomQuestion, recommendedAnswerForRoom } from './response-evaluator.js?v=2';
 import { PROFILE_OPTIONS, getPlayerProfile, getProfileAsset, hasCompleteProfile, profileForRoom, randomPlayerProfile, savePlayerProfile, sanitizeProfile } from './player-profile.js?v=1';
+import { getAudioSettings, playArenaSound, setAudioScene, startAudio, updateAudioSettings } from './audio-manager.js?v=1';
+import { hideArenaEvent, initArenaVisuals, renderCharacterStages, renderFinalPodium, setArenaScene, showPunishedSequence, showWinnerSequence } from './arena-visuals.js?v=1';
 import { database, ref, set, update, get, onValue, onDisconnect, push, remove, runTransaction, serverTimestamp } from './game/realtime.js?v=2';
 
 const state = { uid: null, roomId: null, room: null, players: {}, currentAnswers: {}, votes: {}, ownAnswer: '', activeQuestion: null, loadedAnswerQuestion: null, serverOffset: 0, hasConnectedOnce: false, unsubscribers: [], answerUnsubscribe: null, answerQuestion: null, answerStatusUnsubscribe: null, answerStatusQuestion: null, voteUnsubscribe: null, voteQuestion: null, timer: null, closeTimer: null, countdownTimer: null, countdownPaintTimer: null, autoRevealTimer: null, scoring: false, submittingAnswer: false, submittingVote: false, soundEnabled: localStorage.getItem('arenaSound') === 'on', profile: getPlayerProfile(), settings: { duration: 10, rounds: 10, pressureMode: false, techniqueId: '' } };
@@ -99,28 +101,14 @@ async function copyText(value, successMessage) {
 
 function updateSoundButtons() {
   document.querySelectorAll('[data-sound-toggle]').forEach((button) => {
-    button.textContent = `Sonido: ${state.soundEnabled ? 'ON' : 'OFF'}`;
-    button.classList.toggle('text-arena-gold', state.soundEnabled);
+    const settings = getAudioSettings();
+    button.textContent = `Sonido: ${settings.music || settings.effects ? 'ON' : 'OFF'}`;
+    button.classList.toggle('text-arena-gold', settings.music || settings.effects);
   });
 }
 
 function playSound(type) {
-  if (!state.soundEnabled) return;
-  const AudioContext = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContext) return;
-  const context = new AudioContext();
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
-  const tones = { start: 660, tick: 520, time: 180, reveal: 740, victory: 880 };
-  oscillator.frequency.value = tones[type] || 440;
-  oscillator.type = type === 'time' ? 'sawtooth' : 'triangle';
-  gain.gain.setValueAtTime(0.0001, context.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.08, context.currentTime + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + (type === 'victory' ? 0.38 : 0.16));
-  oscillator.connect(gain);
-  gain.connect(context.destination);
-  oscillator.start();
-  oscillator.stop(context.currentTime + (type === 'victory' ? 0.4 : 0.18));
+  playArenaSound(type);
 }
 
 function selectedProfileDraft() {
@@ -395,16 +383,19 @@ function renderState() {
     state.votes = {};
   }
   if (room.status === 'LOBBY') {
+    setAudioScene('LOBBY');
     clearLocalQuestionState();
     clearTimeout(state.countdownTimer);
     clearInterval(state.countdownPaintTimer);
     window.switchScreen(isHost() ? 'ui-4' : 'ui-5');
   }
   if (room.status === 'COUNTDOWN') {
+    setAudioScene('COUNTDOWN');
     window.switchScreen('ui-6');
     scheduleCountdown(room.countdownStartedAt);
   }
   if (room.status === 'QUESTION') {
+    setAudioScene('QUESTION');
     window.switchScreen('ui-7');
     stopAnswerListener();
     stopVoteListener();
@@ -415,10 +406,10 @@ function renderState() {
     startTimer(room.questionStartedAt, currentQuestionDuration(room));
     if (isHost()) scheduleQuestionClose(room.questionStartedAt, currentQuestionDuration(room));
   }
-  if (room.status === 'VOTING') { window.switchScreen('ui-10'); stopAnswerStatusListener(); listenAnswers(); listenVotes(); scheduleAutoReveal(); setRevealChrome(); }
-  if (room.status === 'QUESTION_RESULTS') { window.switchScreen('ui-10'); stopAnswerStatusListener(); listenAnswers(); listenVotes(); clearTimeout(state.autoRevealTimer); setRevealChrome(); playSound('reveal'); }
-  if (room.status === 'LEADERBOARD') { stopAnswerStatusListener(); stopVoteListener(); window.switchScreen('ui-11'); renderLeaderboard(); }
-  if (room.status === 'FINISHED') { stopAnswerStatusListener(); stopVoteListener(); window.switchScreen('ui-11'); }
+  if (room.status === 'VOTING') { setAudioScene('VOTING'); window.switchScreen('ui-10'); stopAnswerStatusListener(); listenAnswers(); listenVotes(); scheduleAutoReveal(); setRevealChrome(); }
+  if (room.status === 'QUESTION_RESULTS') { setAudioScene('REVEAL'); window.switchScreen('ui-10'); stopAnswerStatusListener(); listenAnswers(); listenVotes(); clearTimeout(state.autoRevealTimer); setRevealChrome(); playSound('reveal'); }
+  if (room.status === 'LEADERBOARD') { setAudioScene('FINAL'); stopAnswerStatusListener(); stopVoteListener(); window.switchScreen('ui-11'); renderLeaderboard(); }
+  if (room.status === 'FINISHED') { setAudioScene('FINAL'); stopAnswerStatusListener(); stopVoteListener(); window.switchScreen('ui-11'); }
 }
 
 async function loadOwnAnswer(question) {
@@ -440,9 +431,11 @@ function renderPlayers() {
   const players = Object.entries(state.players).sort(([, a], [, b]) => (b.isHost ? 1 : 0) - (a.isHost ? 1 : 0));
   const ownPlayer = state.players[state.uid];
   const hostPlayer = players.find(([, player]) => player.isHost)?.[1];
+  renderCharacterStages({ players: state.players, currentUid: state.uid, hostUid: state.room?.hostUid });
   document.querySelectorAll('[data-own-player-name]').forEach((element) => { element.textContent = ownPlayer?.nickname || 'Tú'; });
   document.querySelectorAll('[data-host-name]').forEach((element) => { element.textContent = hostPlayer?.nickname || state.room?.hostName || 'Host'; });
   document.querySelectorAll('[data-player-count]').forEach((element) => { element.textContent = `(${players.length}/8)`; });
+  document.querySelectorAll('[data-countdown-players]').forEach((element) => { element.textContent = `${players.length} ${players.length === 1 ? 'JUGADOR' : 'JUGADORES'}`; });
   document.querySelectorAll('[data-player-list]').forEach((list) => {
     list.innerHTML = players.map(([uid, player]) => {
       const avatar = player.avatarUrl ? `<img src="${escapeHtml(player.avatarUrl)}" alt="" class="h-full w-full rounded-lg object-cover"/>` : (player.isHost ? '👑' : '⚡');
@@ -484,6 +477,7 @@ function startTimer(startedAt, duration) {
       bar.style.width = `${pct}%`;
       bar.classList.toggle('time-bar-critical', remainingSeconds <= 3);
     });
+    if (remainingSeconds <= 3 && remainingSeconds > 0) setAudioScene('CRITICAL');
     if (remainingSeconds <= 3 && remainingSeconds > 0 && remainingMs % 1000 < 240) playSound('tick');
   };
   tick(); state.timer = setInterval(tick, 200);
@@ -536,6 +530,7 @@ async function beginQuestion(number) {
   if (isHost()) await clearRoomAnswers(state.roomId);
   const duration = effectiveDuration(state.room?.questionDuration, number, state.room?.pressureMode);
   await update(ref(database, `rooms/${state.roomId}`), { status: 'COUNTDOWN', currentQuestion: number, currentQuestionDuration: duration, countdownStartedAt: serverTimestamp(), roundWinnerUid: '' });
+  playSound('start');
 }
 
 function resetLocalQuestionState(question) {
@@ -568,6 +563,7 @@ function clearAnswerFields() {
 
 async function startGame() {
   if (!isHost()) throw new Error('Solo el host puede iniciar la partida.');
+  playSound('create');
   await beginQuestion(1);
 }
 
@@ -586,6 +582,7 @@ async function submitAnswer() {
     document.querySelectorAll('[data-own-answer]').forEach((element) => { element.textContent = `“${answer}”`; });
     renderWaitingStatus();
     window.switchScreen('ui-8');
+    playSound('submit');
   } finally {
     state.submittingAnswer = false;
   }
@@ -600,6 +597,7 @@ async function submitVote(targetUid) {
     await set(ref(database, `roomVotes/${state.roomId}/${state.room.currentQuestion}/${state.uid}`), targetUid);
     state.votes = { ...(state.votes || {}), [state.uid]: targetUid };
     renderAnswers(state.currentAnswers || {});
+    playSound('vote');
   } finally {
     state.submittingVote = false;
   }
@@ -693,7 +691,10 @@ function setRevealChrome() {
   const winnerBox = $('[data-round-winner]');
   winnerBox?.classList.toggle('hidden', !winner || voting);
   if (winner && !voting) {
-    $('[data-round-winner-name]') && ($('[data-round-winner-name]').textContent = state.players[winner]?.nickname || 'Jugador');
+    const player = state.players[winner] || {};
+    const counts = voteCounts();
+    $('[data-round-winner-name]') && ($('[data-round-winner-name]').textContent = player.nickname || 'Jugador');
+    showWinnerSequence(player, counts[winner] || 0);
   }
   const voters = Object.keys(state.votes || {}).length;
   const players = Object.keys(state.players || {}).length;
@@ -781,6 +782,10 @@ function renderPersonalAnalysis(answers = {}) {
     return;
   }
   const evaluation = evaluateAnswer(own, activeQuestion);
+  if (state.room?.status === 'QUESTION_RESULTS' && evaluation.score < 45) {
+    showPunishedSequence(state.players[state.uid], evaluation.improvement || 'Evita justificarte; cambia el marco con humor o seguridad.');
+    playSound('boo');
+  }
   const references = [reference, ...(Array.isArray(activeQuestion?.referenceAnswers) ? activeQuestion.referenceAnswers : [])].filter(Boolean);
   target.innerHTML = `
     <div class="flex items-center justify-between gap-2">
@@ -815,6 +820,7 @@ function renderLeaderboard() {
   $('[data-final-duration]') && ($('[data-final-duration]').textContent = `${duration}s por ronda`);
   target.classList.remove('hidden');
   $('#hist-by-round')?.classList.add('hidden');
+  renderFinalPodium(players);
   const rank = (score = 0) => score >= 900 ? 'Leyenda' : score >= 650 ? 'Élite' : score >= 420 ? 'Firme' : score >= 220 ? 'Calibrado' : 'Novato';
   target.innerHTML = players.sort((a, b) => (b.score || 0) - (a.score || 0)).map((player, index) => `<div class="bg-arena-dark/90 p-3 rounded-xl border border-arena-cardborder flex items-center justify-between gap-3"><div><span class="font-bold">#${index + 1} ${escapeHtml(player.nickname)}</span><div class="mt-1 text-[10px] font-mono text-gray-500">${rank(player.score || 0)} · racha ${player.streak || 0}</div></div><span class="font-mono text-arena-gold">${player.score || 0} PTS</span></div>`).join('') || '<div class="bg-arena-dark/90 p-3 rounded-xl border border-arena-cardborder text-center text-gray-400">Sin jugadores registrados.</div>';
 }
@@ -912,7 +918,7 @@ function bindAction(selector, text, handler) {
 function bindGameAction(action, handler) {
   document.querySelectorAll(`[data-game-action="${action}"]`).forEach((button) => {
     button.onclick = null;
-    button.addEventListener('click', (event) => { event.preventDefault(); handler().catch((error) => showError(error.message)); });
+    button.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); handler().catch((error) => showError(error.message)); });
   });
 }
 
@@ -928,6 +934,7 @@ function bindProfileUi() {
   document.querySelectorAll('[data-profile-gate]').forEach((button) => {
     button.addEventListener('click', (event) => {
       event.preventDefault();
+      event.stopPropagation();
       if (!ensureCompleteProfile()) return;
       window.switchScreen(button.dataset.profileGate);
     });
@@ -993,6 +1000,11 @@ function bindActions() {
     document.addEventListener('click', (event) => {
       if (event.defaultPrevented) return;
       const voteTarget = event.target.closest?.('[data-vote-target]')?.dataset.voteTarget;
+      if (event.target.closest?.('[data-close-arena-event]')) {
+        event.preventDefault();
+        hideArenaEvent();
+        return;
+      }
       if (voteTarget) {
         event.preventDefault();
         submitVote(voteTarget).catch((error) => showError(error.message));
@@ -1014,11 +1026,16 @@ function bindActions() {
   }
   $('[data-open-host-settings]')?.addEventListener('click', (event) => { event.preventDefault(); openHostSettings(); });
   document.querySelectorAll('[data-sound-toggle]').forEach((button) => button.addEventListener('click', () => {
-    state.soundEnabled = !state.soundEnabled;
-    localStorage.setItem('arenaSound', state.soundEnabled ? 'on' : 'off');
+    const next = !(getAudioSettings().music || getAudioSettings().effects);
+    updateAudioSettings({ music: next, effects: next });
     updateSoundButtons();
-    playSound('start');
+    if (next) playSound('start');
   }));
+  document.querySelectorAll('button, a').forEach((element) => {
+    element.addEventListener('pointerenter', () => playArenaSound('hover'));
+    element.addEventListener('click', () => { startAudio(); playArenaSound('click'); });
+  });
+  bindAudioPanel();
   updateSoundButtons();
   $('[data-copy-code]')?.addEventListener('click', () => copyText(state.room?.code || '', 'Código copiado').catch((error) => showError(error.message)));
   $('[data-copy-link]')?.addEventListener('click', () => copyText(roomUrl(), 'Link de invitación copiado').catch((error) => showError(error.message)));
@@ -1049,6 +1066,51 @@ function bindActions() {
   $('[data-host-technique-select]')?.addEventListener('change', (event) => { state.settings.techniqueId = event.target.value; });
   $('[data-pressure-mode]')?.addEventListener('change', (event) => { state.settings.pressureMode = event.target.checked; });
   $('[data-host-pressure-mode]')?.addEventListener('change', (event) => { state.settings.pressureMode = event.target.checked; });
+}
+
+function renderAudioPanel() {
+  const settings = getAudioSettings();
+  document.querySelectorAll('[data-audio-toggle="music"]').forEach((input) => { input.checked = settings.music; });
+  document.querySelectorAll('[data-audio-toggle="effects"]').forEach((input) => { input.checked = settings.effects; });
+  document.querySelectorAll('[data-audio-toggle="reducedFx"]').forEach((input) => { input.checked = settings.reducedFx; });
+  document.querySelectorAll('[data-audio-range="musicVolume"]').forEach((input) => { input.value = String(Math.round(settings.musicVolume * 100)); });
+  document.querySelectorAll('[data-audio-range="effectsVolume"]').forEach((input) => { input.value = String(Math.round(settings.effectsVolume * 100)); });
+  document.querySelectorAll('[data-audio-range="ambienceVolume"]').forEach((input) => { input.value = String(Math.round(settings.ambienceVolume * 100)); });
+  document.querySelectorAll('[data-audio-value]').forEach((element) => {
+    const key = element.dataset.audioValue;
+    element.textContent = `${Math.round(Number(settings[key] || 0) * 100)}%`;
+  });
+  document.querySelectorAll('[data-audio-quick]').forEach((button) => {
+    button.textContent = settings.music || settings.effects ? '🔊' : '🔇';
+    button.setAttribute('aria-label', settings.music || settings.effects ? 'Abrir sonido' : 'Sonido apagado');
+  });
+}
+
+function bindAudioPanel() {
+  renderAudioPanel();
+  $('[data-audio-quick]')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    $('#audio-panel')?.classList.toggle('hidden');
+  });
+  $('[data-audio-close]')?.addEventListener('click', () => $('#audio-panel')?.classList.add('hidden'));
+  document.querySelectorAll('[data-audio-toggle]').forEach((input) => {
+    input.addEventListener('change', () => {
+      updateAudioSettings({ [input.dataset.audioToggle]: input.checked });
+      document.body.classList.toggle('reduced-fx', getAudioSettings().reducedFx);
+      renderAudioPanel();
+    });
+  });
+  document.querySelectorAll('[data-audio-range]').forEach((input) => {
+    input.addEventListener('input', () => {
+      updateAudioSettings({ [input.dataset.audioRange]: Number(input.value) / 100 });
+      renderAudioPanel();
+    });
+  });
+  window.addEventListener('arena-audio-settings', () => {
+    const settings = getAudioSettings();
+    document.body.classList.toggle('reduced-fx', settings.reducedFx);
+    updateSoundButtons();
+  });
 }
 
 function openCustomDurationModal(currentValue, onApply) {
@@ -1127,6 +1189,10 @@ function bindSettingButtons(containerSelector, key, allowed, summarySelector, fo
 window.addEventListener('DOMContentLoaded', async () => {
   localStorage.removeItem('arenaSession');
   retireLegacyAppCache().catch(() => {});
+  initArenaVisuals();
+  setAudioScene('HOME');
+  window.addEventListener('arena-screen-change', (event) => setArenaScene(event.detail?.screenId || 'ui-1'));
+  setArenaScene('ui-1');
   bindActions();
   bindProfileUi();
   ['#join-code'].forEach((selector) => {
