@@ -1,6 +1,6 @@
 import { ensurePlayerUser } from './auth.js?v=4';
 import { fallbackQuestionText, loadGameCategories, loadGameTechniques, pickQuestionsForRoom } from './question-service.js?v=5';
-import { evaluateAnswer, getCurrentRoomQuestion, recommendedAnswerForRoom } from './response-evaluator.js?v=3';
+import { evaluateAnswer, getCurrentRoomQuestion, recommendedAnswerForRoom } from './response-evaluator.js?v=4';
 import { PROFILE_OPTIONS, getPlayerProfile, getProfileAsset, hasCompleteProfile, profileForRoom, randomPlayerProfile, savePlayerProfile, sanitizeProfile } from './player-profile.js?v=1';
 import { getAudioSettings, playArenaSound, setAudioScene, startAudio, updateAudioSettings } from './audio-manager.js?v=1';
 import { hideArenaEvent, initArenaVisuals, renderCharacterStages, renderFinalPodium, setArenaScene, showPunishedSequence, showWinnerSequence } from './arena-visuals.js?v=1';

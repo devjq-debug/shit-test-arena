@@ -286,7 +286,7 @@ watchAuthState(async (user) => {
     const isPasswordUser = user.providerData.some((provider) => provider.providerId === 'password');
     if (user.isAnonymous || !isPasswordUser) {
       await signOutCurrentUser();
-      setLoginError('El panel admin solo acepta usuarios con correo y contraseña.');
+      setLoginError('Acceso privado: usa las credenciales autorizadas del administrador.');
       setView(false);
       return;
     }
